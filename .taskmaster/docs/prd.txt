@@ -1,0 +1,76 @@
+# Product Requirements Document (PRD) - Simplified Digital Video Sales Platform
+
+## 1. Introduction
+
+This document outlines the requirements for a simplified digital video sales platform that leverages Telegram for content delivery. The system will allow users to purchase videos through a web interface (based on telebot.html design) and receive them automatically via Telegram. No user authentication required - keep it simple.
+
+## 2. Objectives
+
+- Facilitate the efficient sale and delivery of digital video content
+- Minimize hosting and bandwidth costs by utilizing Telegram's cloud for videos
+- Provide a simple and automated user experience
+- Get MVP working today with core functionality only
+
+## 3. Key Features (Simplified)
+
+### 3.1. Simple Web Page (Frontend)
+- **Video Catalog**: Use the existing telebot.html design to display videos for purchase
+- **Responsive Design**: The existing design is already mobile-friendly
+- **Purchase Flow**: Integrate with Stripe Checkout for payments
+- **No user accounts**: Direct purchase without registration
+
+### 3.2. Backend (Laravel)
+- **Content Management**: Simple CRUD for videos (title, description, price, Telegram file ID)
+- **Stripe Integration**: Direct Stripe Checkout integration (simplified, no Laravel Cashier initially)
+- **Telegram Bot Integration**: Send videos via Telegram bot after purchase
+- **Database**: Simple videos table with file_id storage
+
+### 3.3. Telegram Bot
+- **Bot Token**: Configure via TELEGRAM_BOT_TOKEN environment variable
+- **Purchase Detection**: Receive webhook from Stripe after successful payment
+- **Automatic Video Delivery**: Send video using stored Telegram file_id
+
+### 3.4. Payment Integration (Stripe)
+- **Stripe Keys**: Configure via environment variables:
+  - STRIPE_KEY (public key)
+  - STRIPE_SECRET (private key)
+- **Stripe Checkout**: Simple checkout session creation
+- **Webhooks**: Handle checkout.session.completed events
+
+## 4. Simplified User Flow
+
+1. User visits web page (based on telebot.html design)
+2. User enters Telegram username in form
+3. User clicks "Buy" on a video
+4. User completes payment via Stripe Checkout
+5. Stripe sends webhook to Laravel backend
+6. Backend sends video to user's Telegram via bot
+7. User receives video in Telegram
+
+## 5. Technical Requirements
+
+- **Web Framework**: Laravel (existing project)
+- **Frontend**: Adapt telebot.html for video sales
+- **Telegram Bot SDK**: telegram-bot-sdk/telegram-bot-sdk for PHP
+- **Payment Gateway**: Stripe (direct integration, keep simple)
+- **Database**: MySQL/PostgreSQL for videos table
+- **Deployment**: Local development first (Laragon)
+
+## 6. MVP Scope (Today's Goal)
+
+- Basic video listing page (adapt telebot.html)
+- Simple video CRUD in Laravel admin
+- Stripe checkout integration
+- Telegram bot video sending
+- Webhook handling for payments
+- No user authentication/accounts
+- No complex features
+
+## 7. Out of Scope (Future)
+
+- User authentication/accounts
+- Laravel Cashier
+- Complex admin interface
+- Subscription features
+- Mobile apps
+- Analytics

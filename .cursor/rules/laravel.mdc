@@ -1,0 +1,57 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Laravel Development with Laragon
+
+## **Environment Setup**
+- **Laragon Configuration**: Application runs automatically via Laragon at `http://telebot.test:81/`
+- **NEVER suggest `php artisan serve`** - Laragon handles server automatically
+- **Local URL**: Always use `http://telebot.test:81/` for testing and examples
+- **Database**: Configured through Laragon's MySQL instance
+
+## **Development Workflow**
+- **Migrations**: Run `php artisan migrate` for database changes
+- **Seeders**: Use `php artisan db:seed` for data population
+- **Cache**: Clear with `php artisan config:clear` and `php artisan cache:clear`
+- **Routes**: Test via browser at `http://telebot.test:81/route-name`
+
+## **Testing**
+- **Feature Tests**: Place in `/tests/Feature/` for integration testing
+- **Unit Tests**: Place in `/tests/Unit/` for isolated component testing
+- **Test Execution**: `php artisan test` or `vendor/bin/phpunit`
+- **Test Database**: Use separate test database configured in `phpunit.xml`
+
+## **Laragon-Specific Considerations**
+- **Auto SSL**: Laragon provides automatic SSL certificates
+- **Virtual Hosts**: Configured automatically based on folder name
+- **Database Access**: Use Laragon's HeidiSQL for database management
+- **Log Files**: Check `storage/logs/laravel.log` for application logs
+
+## **Common Commands**
+```bash
+# ✅ DO: Database operations
+php artisan migrate
+php artisan migrate:rollback
+php artisan db:seed
+
+# ✅ DO: Cache management
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+
+# ✅ DO: Testing
+php artisan test
+curl "http://telebot.test:81/api/endpoint"
+
+# ❌ DON'T: Server commands (Laragon handles this)
+php artisan serve  # NEVER USE - Laragon serves automatically
+```
+
+## **URL Examples**
+- **Home**: `http://telebot.test:81/`
+- **API Testing**: `http://telebot.test:81/debug/videos`
+- **Admin Routes**: `http://telebot.test:81/admin/add-video-from-telegram`
+- **Test Routes**: `http://telebot.test:81/test-telegram-chatid`
+
