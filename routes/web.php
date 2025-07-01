@@ -44,6 +44,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(
     Route::get('/videos/test-telegram', [VideoController::class, 'testTelegramConnection'])->name('videos.test-telegram');
     Route::post('/videos/reset-updates', [VideoController::class, 'resetUpdatesOffset'])->name('videos.reset-updates');
     Route::post('/videos/import-known-videos', [VideoController::class, 'importKnownVideos'])->name('videos.import-known-videos');
+    Route::post('/videos/manual-import', [VideoController::class, 'manualImportVideo'])->name('videos.manual-import');
 });
 
 // Telegram webhooksy

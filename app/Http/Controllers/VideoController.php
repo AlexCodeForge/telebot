@@ -552,6 +552,56 @@ class VideoController extends Controller
     }
 
     /**
+     * Manual fallback import for when getUpdates times out
+     */
+    public function manualImportVideo(Request $request)
+    {
+        $fileId = $request->input('file_id');
+        $title = $request->input('title', 'Manual Import Video');
+        $price = $request->input('price', 4.99);
+
+        if (!$fileId) {
+            return response()->json(['success' => false, 'error' => 'File ID is required']);
+        }
+
+        try {
+            // Check if video already exists
+            $existingVideo = Video::where('telegram_file_id', $fileId)->first();
+
+            if ($existingVideo) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Video already exists',
+                    'existing_video' => $existingVideo
+                ]);
+            }
+
+            // Create new video
+            $newVideo = Video::create([
+                'title' => $title,
+                'description' => 'Manually imported video',
+                'price' => $price,
+                'telegram_file_id' => $fileId,
+            ]);
+
+            Log::info('Manual video import successful', [
+                'video_id' => $newVideo->id,
+                'file_id' => $fileId,
+                'title' => $title
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Video imported successfully!',
+                'video' => $newVideo
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Manual import failed', ['error' => $e->getMessage(), 'file_id' => $fileId]);
+            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * Admin: Import videos directly using known file IDs from recent messages
      * Enhanced for large numbers of videos with batch processing
      */

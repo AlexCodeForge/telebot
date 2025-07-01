@@ -97,6 +97,8 @@ return [
     */
     'http_client_options' => [
         'verify' => env('TELEGRAM_SSL_VERIFY', true),
+        'timeout' => env('TELEGRAM_TIMEOUT', 30), // Increase timeout to 30 seconds
+        'connect_timeout' => env('TELEGRAM_CONNECT_TIMEOUT', 10), // Connection timeout
     ],
 
     /*
