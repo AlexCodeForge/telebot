@@ -84,16 +84,44 @@ php artisan cache:clear || echo "⚠️  Cache clear failed, continuing..."
 # Check if database is accessible
 echo "🔍 Checking database migration status..."
 if ! php artisan migrate:status &>/dev/null; then
-    echo "📊 Running initial database migrations..."
-    php artisan migrate --force --step
+    echo "📊 Database appears empty, running initial migrations..."
+    if ! php artisan migrate --force; then
+        echo "❌ Initial migrations failed! Trying step by step..."
+        php artisan migrate --force --step || echo "❌ Step migrations also failed"
+    fi
 else
-    echo "📊 Running database migrations..."
-    php artisan migrate --force
+    echo "📊 Database has migrations, checking if we need to run new ones..."
+    if ! php artisan migrate --force; then
+        echo "❌ Migration update failed!"
+    fi
 fi
+
+# Verify critical tables exist
+echo "🔍 Verifying critical tables exist..."
+php -r "
+try {
+    \$pdo = new PDO('sqlite:/var/www/html/database/database.sqlite');
+    \$tables = ['users', 'sessions', 'migrations'];
+    foreach (\$tables as \$table) {
+        \$result = \$pdo->query(\"SELECT name FROM sqlite_master WHERE type='table' AND name='{\$table}'\");
+        if (\$result->rowCount() > 0) {
+            echo \"✅ Table {\$table} exists\n\";
+        } else {
+            echo \"❌ Table {\$table} MISSING!\n\";
+        }
+    }
+} catch (Exception \$e) {
+    echo \"❌ Database verification failed: \" . \$e->getMessage() . \"\n\";
+}
+"
 
 # Seed database with admin user and sample videos
 echo "🌱 Seeding database..."
-php artisan db:seed --force --class=DatabaseSeeder || echo "⚠️  Seeding completed (some seeders may have already run)"
+if ! php artisan db:seed --force --class=DatabaseSeeder; then
+    echo "⚠️  Seeding failed, trying individual seeders..."
+    php artisan db:seed --force --class=AdminUserSeeder || echo "⚠️  Admin seeder failed"
+    php artisan db:seed --force --class=VideosTableSeeder || echo "⚠️  Videos seeder failed"
+fi
 
 # Cache configuration for production (only after migrations)
 echo "⚡ Caching configuration..."

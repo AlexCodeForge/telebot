@@ -433,6 +433,24 @@ if docker ps | grep -q "telebot-app"; then
     else
         echo "🔍 TeleBot app not responding, running diagnostics..."
         debug_app_failure
+
+        echo ""
+        echo "🔧 Attempting to fix migrations manually..."
+        echo "   Running database migrations..."
+        if $DOCKER_COMPOSE exec app php artisan migrate --force; then
+            echo "   ✅ Migrations completed successfully!"
+            echo "   🌱 Running seeders..."
+            $DOCKER_COMPOSE exec app php artisan db:seed --force || echo "   ⚠️  Seeders completed with warnings"
+            echo "   🔄 Restarting app to apply changes..."
+            $DOCKER_COMPOSE restart app
+            sleep 10
+            if check_service "TeleBot App (after migration fix)" 8000; then
+                APP_RUNNING=true
+                echo "   🎉 Migration fix successful!"
+            fi
+        else
+            echo "   ❌ Migration fix failed"
+        fi
     fi
 else
     echo "❌ TeleBot app container not found"
