@@ -33,9 +33,17 @@ RUN apk update && apk upgrade && \
         zip \
         unzip
 
-# Configure and install PHP extensions
+# Configure and install ALL PHP extensions Laravel needs
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install pdo_sqlite zip mbstring gd
+    docker-php-ext-install \
+        pdo_sqlite \
+        zip \
+        mbstring \
+        gd \
+        bcmath \
+        pcntl \
+        fileinfo \
+        tokenizer
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -43,13 +51,14 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Copy application files
 COPY . /var/www/html/
 
-# Set proper permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage \
-    && chmod -R 755 /var/www/html/bootstrap/cache
+# Fix git ownership issues and set proper permissions
+RUN git config --global --add safe.directory /var/www/html && \
+    chown -R www-data:www-data /var/www/html && \
+    chmod -R 755 /var/www/html/storage && \
+    chmod -R 755 /var/www/html/bootstrap/cache
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Install PHP dependencies with platform requirements check disabled for Docker
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-bcmath --ignore-platform-req=ext-fileinfo --ignore-platform-req=ext-tokenizer
 
 # Install Node.js dependencies and build assets
 RUN npm install && npm run build

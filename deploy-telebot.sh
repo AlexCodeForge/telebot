@@ -129,6 +129,33 @@ if [ -z "$DOCKER_COMPOSE_CMD" ]; then
 fi
 echo "✅ Using Docker Compose command: $DOCKER_COMPOSE_CMD"
 
+# Pre-flight checks
+echo "🔍 Running pre-flight checks..."
+
+# Check available disk space (need at least 2GB)
+AVAILABLE_SPACE=$(df / | awk 'NR==2 {print $4}')
+if [ "$AVAILABLE_SPACE" -lt 2097152 ]; then  # 2GB in KB
+    echo "⚠️  Warning: Low disk space (less than 2GB free). Docker build may fail."
+    echo "   Available: $(($AVAILABLE_SPACE / 1024))MB"
+fi
+
+# Check if ports are available
+for port in 8000 80 443 81; do
+    if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+        echo "⚠️  Warning: Port $port is already in use. This may cause conflicts."
+    fi
+done
+
+# Check memory (need at least 1GB available)
+if [ -f /proc/meminfo ]; then
+    AVAILABLE_MEM=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+    if [ "$AVAILABLE_MEM" -lt 1048576 ]; then  # 1GB in KB
+        echo "⚠️  Warning: Low memory (less than 1GB available). Build may be slow."
+    fi
+fi
+
+echo "✅ Pre-flight checks completed"
+
 # Check if we're in the telebot directory
 if [ ! -f "docker-compose.yml" ]; then
     if [ -d "telebot" ]; then
@@ -233,6 +260,15 @@ EOF
 # Stop any existing containers
 echo "🛑 Stopping any existing containers..."
 $DOCKER_COMPOSE_CMD down 2>/dev/null || true
+
+# Clean up Docker system to free space and prevent cache issues
+echo "🧹 Cleaning up Docker system..."
+docker system prune -f || true
+
+# Remove any existing images to ensure fresh build
+echo "🗑️  Removing existing telebot images..."
+docker rmi telebot-telebot telebot_telebot 2>/dev/null || true
+docker rmi $(docker images -q --filter "reference=telebot*") 2>/dev/null || true
 
 # Build and start containers
 echo "🚀 Building and starting containers..."
