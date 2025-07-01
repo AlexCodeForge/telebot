@@ -12,7 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('videos', function (Blueprint $table) {
-            //
+            $table->integer('file_size')->nullable()->after('telegram_message_data');
+            $table->integer('duration')->nullable()->after('file_size');
+            $table->integer('width')->nullable()->after('duration');
+            $table->integer('height')->nullable()->after('width');
         });
     }
 
@@ -22,7 +25,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('videos', function (Blueprint $table) {
-            //
+            $table->dropColumn(['file_size', 'duration', 'width', 'height']);
         });
     }
 };

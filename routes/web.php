@@ -33,15 +33,20 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(
     Route::put('/videos/{video}', [VideoController::class, 'update'])->name('videos.update');
     Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
     Route::post('/videos/{video}/test', [VideoController::class, 'testVideo'])->name('videos.test');
-    Route::post('/videos/{video}/generate-thumbnail', [VideoController::class, 'generateThumbnail'])->name('videos.generate-thumbnail');
-    Route::post('/videos/bulk-action', [VideoController::class, 'bulkAction'])->name('videos.bulk-action');
-    Route::post('/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('videos.set-sync-user');
-    Route::post('/videos/set-sync-method', [VideoController::class, 'setSyncMethod'])->name('videos.set-sync-method');
+    Route::post('/videos/{video}/send-to-sync-user', [VideoController::class, 'sendToSyncUser'])->name('videos.send-to-sync-user');
+    Route::post('/videos/{video}/thumbnail', [VideoController::class, 'getVideoThumbnail'])->name('videos.get-thumbnail');
+    Route::post('/videos/sync-user', [VideoController::class, 'setSyncUser'])->name('videos.set-sync-user');
+    Route::delete('/videos/sync-user', [VideoController::class, 'removeSyncUser'])->name('videos.remove-sync-user');
     Route::post('/videos/sync', [VideoController::class, 'syncVideos'])->name('videos.sync');
-    Route::post('/videos/{video}/send-to-sync', [VideoController::class, 'sendToSyncUser'])->name('videos.send-to-sync');
+    Route::post('/videos/webhook/deactivate', [VideoController::class, 'deactivateWebhook'])->name('videos.deactivate-webhook');
+    Route::post('/videos/webhook/reactivate', [VideoController::class, 'reactivateWebhook'])->name('videos.reactivate-webhook');
+    Route::get('/videos/webhook/status', [VideoController::class, 'getWebhookStatus'])->name('videos.webhook-status');
+    Route::get('/videos/test-telegram', [VideoController::class, 'testTelegramConnection'])->name('videos.test-telegram');
+    Route::post('/videos/reset-updates', [VideoController::class, 'resetUpdatesOffset'])->name('videos.reset-updates');
+    Route::post('/videos/import-known-videos', [VideoController::class, 'importKnownVideos'])->name('videos.import-known-videos');
 });
 
-// Telegram webhook
+// Telegram webhooksy
 Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
 
 // Bot emulator for local testing

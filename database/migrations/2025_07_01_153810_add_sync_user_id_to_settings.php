@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -15,9 +16,18 @@ return new class extends Migration
             $table->id();
             $table->string('key')->unique();
             $table->text('value')->nullable();
-            $table->string('type')->default('string'); // string, integer, boolean, array, json
+            $table->string('type')->default('string'); // string, integer, boolean, json
             $table->timestamps();
         });
+
+        // Insert default sync user setting
+        DB::table('settings')->insert([
+            'key' => 'sync_user_id',
+            'value' => null,
+            'type' => 'integer',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**

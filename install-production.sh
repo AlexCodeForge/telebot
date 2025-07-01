@@ -19,7 +19,7 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-echo "🚀 TeleBot Production Installer"
+echo "🚀 TeleBot Production Installer/Updater"
 echo "======================================"
 
 # Parse command line arguments
@@ -50,6 +50,106 @@ if [[ -z "$DOMAIN" || -z "$TELEGRAM_TOKEN" || -z "$STRIPE_PUBLIC" || -z "$STRIPE
     exit 1
 fi
 
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+   log_error "This script must be run as root (use sudo)"
+   exit 1
+fi
+
+# Check if TeleBot is already installed
+if [[ -d "$INSTALL_PATH" && -f "$INSTALL_PATH/.env" && -f "$INSTALL_PATH/artisan" ]]; then
+    log_info "TeleBot installation detected at $INSTALL_PATH"
+    log_info "Performing update instead of fresh installation..."
+
+    echo "🔄 TeleBot Update Process"
+    echo "========================="
+
+    cd "$INSTALL_PATH"
+
+    # Backup current .env
+    log_info "Backing up current configuration..."
+    cp .env .env.backup.$(date +%s)
+
+    # Stop services temporarily
+    log_info "Stopping services..."
+    systemctl stop telebot-queue 2>/dev/null || true
+
+    # Pull latest code
+    log_info "Pulling latest code..."
+    git stash >/dev/null 2>&1 || true
+    git pull origin master
+    git stash pop >/dev/null 2>&1 || true
+
+    # Update dependencies
+    log_info "Updating PHP dependencies..."
+    composer install --no-dev --optimize-autoloader --no-interaction
+
+    # Update frontend assets
+    log_info "Updating frontend assets..."
+    npm ci --silent
+    npm run build --silent
+
+    # Run migrations
+    log_info "Running database migrations..."
+    php artisan migrate --force
+
+    # Clear and rebuild caches
+    log_info "Optimizing application..."
+    php artisan config:clear
+    php artisan cache:clear
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+
+    # Update environment variables if they changed
+    log_info "Updating configuration..."
+    sed -i "s|^APP_URL=.*|APP_URL=https://$DOMAIN|" .env
+    sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN|" .env
+    sed -i "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=https://$DOMAIN/telegram/webhook|" .env
+    sed -i "s|^STRIPE_KEY=.*|STRIPE_KEY=$STRIPE_PUBLIC|" .env
+    sed -i "s|^STRIPE_SECRET=.*|STRIPE_SECRET=$STRIPE_SECRET|" .env
+
+    # Restart services
+    log_info "Restarting services..."
+    systemctl restart php8.2-fpm
+    systemctl restart nginx
+    systemctl start telebot-queue
+
+    # Update Telegram webhook
+    log_info "Updating Telegram webhook..."
+    WEBHOOK_URL="https://$DOMAIN/telegram/webhook"
+    if curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/setWebhook?url=$WEBHOOK_URL" | grep -q '"ok":true'; then
+        log_success "Telegram webhook updated successfully"
+    else
+        log_warning "Failed to update Telegram webhook - check your bot token"
+    fi
+
+    echo ""
+    echo "🎉 TeleBot Update Complete!"
+    echo "=========================="
+    echo ""
+    echo "📊 Update Summary:"
+    echo "  🌐 Domain: https://$DOMAIN"
+    echo "  📁 Path: $INSTALL_PATH"
+    echo "  📱 Telegram Webhook: $WEBHOOK_URL"
+    echo ""
+    echo "🔧 Management Commands:"
+    echo "  📊 Check status: systemctl status telebot-queue"
+    echo "  📝 View logs: tail -f $INSTALL_PATH/storage/logs/laravel.log"
+    echo "  🔄 Restart services: systemctl restart php8.2-fpm nginx telebot-queue"
+    echo ""
+    echo "🔗 Important URLs:"
+    echo "  🏠 Application: https://$DOMAIN"
+    echo "  👑 Admin Panel: https://$DOMAIN/admin/videos/manage"
+    echo ""
+
+    log_success "Update completed successfully! 🚀"
+    exit 0
+fi
+
+# Continue with fresh installation if not already installed
+log_info "No existing installation found. Proceeding with fresh installation..."
+
 log_info "Configuration:"
 echo "  🌐 Domain: $DOMAIN"
 echo "  📱 Telegram Token: ${TELEGRAM_TOKEN:0:20}..."
@@ -57,12 +157,6 @@ echo "  💳 Stripe Public: ${STRIPE_PUBLIC:0:20}..."
 echo "  🔐 Stripe Secret: ${STRIPE_SECRET:0:20}..."
 echo "  📁 Install Path: $INSTALL_PATH"
 echo ""
-
-# Check if running as root
-if [[ $EUID -ne 0 ]]; then
-   log_error "This script must be run as root (use sudo)"
-   exit 1
-fi
 
 # Function to wait for package locks
 wait_for_package_locks() {

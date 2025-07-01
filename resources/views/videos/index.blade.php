@@ -13,18 +13,36 @@
             @foreach ($videos as $video)
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card h-100 shadow-sm">
+                        @if ($video->thumbnail_url)
+                            <img src="{{ $video->thumbnail_url }}" class="card-img-top" alt="Video thumbnail"
+                                style="height: 200px; object-fit: cover;">
+                        @else
+                            <div class="card-img-top d-flex align-items-center justify-content-center bg-light"
+                                style="height: 200px;">
+                                <i class="fas fa-video fa-3x text-muted"></i>
+                            </div>
+                        @endif
+
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">{{ $video->title }}</h5>
                             <p class="card-text text-muted flex-grow-1">
                                 {{ $video->description ?: 'High-quality video content' }}
                             </p>
 
+                            @if ($video->duration)
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> Duration: {{ gmdate('i:s', $video->duration) }}
+                                    </small>
+                                </div>
+                            @endif
+
                             <div class="mt-auto">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     @if ($video->isFree())
                                         <span class="h4 text-success mb-0">FREE</span>
                                     @else
-                                        <span class="h4 text-primary mb-0">${{ $video->formatted_price }}</span>
+                                        <span class="h4 text-primary mb-0">${{ number_format($video->price, 2) }}</span>
                                     @endif
 
                                     @if ($video->telegram_file_id)

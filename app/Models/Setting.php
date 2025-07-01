@@ -8,10 +8,14 @@ class Setting extends Model
 {
     protected $fillable = ['key', 'value', 'type'];
 
+    protected $casts = [
+        'value' => 'string',
+    ];
+
     /**
-     * Get a setting value
+     * Get a setting value by key
      */
-    public static function get($key, $default = null)
+    public static function get(string $key, $default = null)
     {
         $setting = static::where('key', $key)->first();
 
@@ -19,47 +23,38 @@ class Setting extends Model
             return $default;
         }
 
-        // Cast value based on type
-        switch ($setting->type) {
-            case 'integer':
-                return (int) $setting->value;
+        return static::castValue($setting->value, $setting->type);
+    }
+
+    /**
+     * Set a setting value by key
+     */
+    public static function set(string $key, $value, string $type = 'string')
+    {
+        $setting = static::firstOrNew(['key' => $key]);
+        $setting->value = $value;
+        $setting->type = $type;
+        $setting->save();
+
+        return $setting;
+    }
+
+    /**
+     * Cast value to appropriate type
+     */
+    protected static function castValue($value, string $type)
+    {
+        switch ($type) {
             case 'boolean':
-                return filter_var($setting->value, FILTER_VALIDATE_BOOLEAN);
-            case 'array':
-                return json_decode($setting->value, true);
+                return (bool) $value;
+            case 'integer':
+                return (int) $value;
+            case 'float':
+                return (float) $value;
             case 'json':
-                return json_decode($setting->value, true);
+                return json_decode($value, true);
             default:
-                return $setting->value;
+                return $value;
         }
-    }
-
-    /**
-     * Set a setting value
-     */
-    public static function set($key, $value, $type = 'string')
-    {
-        // Convert value to string for storage
-        $stringValue = $value;
-        if (in_array($type, ['array', 'json'])) {
-            $stringValue = json_encode($value);
-        } elseif ($type === 'boolean') {
-            $stringValue = $value ? '1' : '0';
-        } else {
-            $stringValue = (string) $value;
-        }
-
-        return static::updateOrCreate(
-            ['key' => $key],
-            ['value' => $stringValue, 'type' => $type]
-        );
-    }
-
-    /**
-     * Remove a setting
-     */
-    public static function forget($key)
-    {
-        return static::where('key', $key)->delete();
     }
 }

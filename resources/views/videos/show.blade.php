@@ -7,20 +7,35 @@
         <div class="row justify-content-center">
             <div class="col-md-8">
                 <div class="card shadow-lg">
+                    @if($video->thumbnail_url)
+                        <img src="{{ $video->thumbnail_url }}" class="card-img-top" alt="Video thumbnail"
+                             style="height: 300px; object-fit: cover;">
+                    @endif
+
                     <div class="card-body p-5">
                         <!-- Video Info -->
                         <div class="text-center mb-4">
-                            <i class="fas fa-play-circle fa-4x text-primary mb-3"></i>
+                            @if(!$video->thumbnail_url)
+                                <i class="fas fa-play-circle fa-4x text-primary mb-3"></i>
+                            @endif
                             <h2>{{ $video->title }}</h2>
                             @if ($video->description)
                                 <p class="text-muted lead">{{ $video->description }}</p>
+                            @endif
+
+                            @if($video->duration)
+                                <div class="mb-3">
+                                    <span class="badge bg-info fs-6">
+                                        <i class="fas fa-clock"></i> Duration: {{ gmdate('i:s', $video->duration) }}
+                                    </span>
+                                </div>
                             @endif
 
                             <div class="price-display mb-4">
                                 @if ($video->isFree())
                                     <span class="h1 text-success">FREE</span>
                                 @else
-                                    <span class="h1 text-primary">${{ $video->formatted_price }}</span>
+                                    <span class="h1 text-primary">${{ number_format($video->price, 2) }}</span>
                                 @endif
                             </div>
                         </div>
