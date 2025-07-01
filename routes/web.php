@@ -11,40 +11,46 @@ Route::get('/', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/{video}', [VideoController::class, 'show'])->name('videos.show');
 
 // Payment routes
-Route::get('/payment/{video}', [PaymentController::class, 'form'])->name('payment.form');
-Route::post('/payment/{video}', [PaymentController::class, 'process'])->name('payment.process');
-Route::get('/payment/success/{video}', [PaymentController::class, 'success'])->name('payment.success');
-Route::get('/payment/cancel/{video}', [PaymentController::class, 'cancel'])->name('payment.cancel');
+Route::get('/payment/form', [PaymentController::class, 'showForm'])->name('payment.form');
+Route::post('/payment/process', [PaymentController::class, 'processPayment'])->name('payment.process');
+Route::get('/payment/success', [PaymentController::class, 'paymentSuccess'])->name('payment.success');
+Route::get('/payment/cancel', [PaymentController::class, 'paymentCancel'])->name('payment.cancel');
 
 // Authentication routes
-Route::get('/dashboard', function () {
-    return redirect()->route('admin.videos.manage');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
 
-Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Admin video management routes
+    Route::get('/admin/videos', [VideoController::class, 'manage'])->name('admin.videos.manage');
+    Route::put('/admin/videos/{video}', [VideoController::class, 'update'])->name('admin.videos.update');
+    Route::delete('/admin/videos/{video}', [VideoController::class, 'destroy'])->name('admin.videos.destroy');
+    Route::post('/admin/videos/{video}/test', [VideoController::class, 'testVideo'])->name('admin.videos.test');
+
+    // Webhook management
+    Route::post('/admin/videos/deactivate-webhook', [VideoController::class, 'deactivateWebhook'])->name('admin.videos.deactivate-webhook');
+    Route::post('/admin/videos/reactivate-webhook', [VideoController::class, 'reactivateWebhook'])->name('admin.videos.reactivate-webhook');
+    Route::get('/admin/videos/webhook-status', [VideoController::class, 'webhookStatus'])->name('admin.videos.webhook-status');
+
+    // Sync user management
+    Route::post('/admin/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('admin.videos.set-sync-user');
+    Route::post('/admin/videos/remove-sync-user', [VideoController::class, 'removeSyncUser'])->name('admin.videos.remove-sync-user');
+
+    // Bot settings
+    Route::post('/admin/videos/toggle-bot-restriction', [VideoController::class, 'toggleBotRestriction'])->name('admin.videos.toggle-bot-restriction');
+
+    // Testing and manual import
+    Route::get('/admin/videos/test-connection', [VideoController::class, 'testConnection'])->name('admin.videos.test-connection');
+    Route::post('/admin/videos/manual-import', [VideoController::class, 'manualImport'])->name('admin.videos.manual-import');
 });
 
-// Admin routes - Protected with authentication
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(function () {
-    Route::get('/videos', [VideoController::class, 'capturedVideos'])->name('videos.manage');
-    Route::put('/videos/{video}', [VideoController::class, 'update'])->name('videos.update');
-    Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
-    Route::post('/videos/{video}/test', [VideoController::class, 'testVideo'])->name('videos.test');
-    Route::post('/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('videos.set-sync-user');
-    Route::post('/videos/remove-sync-user', [VideoController::class, 'removeSyncUser'])->name('videos.remove-sync-user');
-    Route::post('/videos/deactivate-webhook', [VideoController::class, 'deactivateWebhook'])->name('videos.deactivate-webhook');
-    Route::post('/videos/reactivate-webhook', [VideoController::class, 'reactivateWebhook'])->name('videos.reactivate-webhook');
-    Route::get('/videos/webhook-status', [VideoController::class, 'getWebhookStatus'])->name('videos.webhook-status');
-    Route::get('/videos/test-connection', [VideoController::class, 'testTelegramConnection'])->name('videos.test-connection');
-    Route::post('/videos/manual-import', [VideoController::class, 'manualImportVideo'])->name('videos.manual-import');
-    Route::post('/videos/clear-all', [VideoController::class, 'clearAllVideos'])->name('videos.clear-all');
-});
-
-// Telegram webhooksy
-Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
+// Telegram webhook (must be accessible without auth)
+Route::post('/telegram/webhook', [VideoController::class, 'webhook'])->name('telegram.webhook');
 
 // Bot emulator for local testing
 Route::get('/telegram/bot-emulator', [TelegramController::class, 'botEmulator']);
