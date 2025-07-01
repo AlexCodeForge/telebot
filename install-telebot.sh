@@ -244,15 +244,18 @@ fi
 cd "$REPO_DIR"
 echo "📂 Working in directory: $(pwd)"
 
+# Get server IP for proper URL configuration
+SERVER_IP=$(curl -s http://ipv4.icanhazip.com/ 2>/dev/null || curl -s http://ifconfig.me/ 2>/dev/null || echo "localhost")
+
 # Create .env file with the provided credentials
 echo "📝 Creating environment configuration..."
 cat > .env << EOF
 APP_NAME="TeleBot Video Store"
-APP_ENV=local
+APP_ENV=production
 APP_KEY=
-APP_DEBUG=true
+APP_DEBUG=false
 APP_TIMEZONE=UTC
-APP_URL=https://$DOMAIN
+APP_URL=http://$SERVER_IP:8000
 
 APP_LOCALE=en
 APP_FALLBACK_LOCALE=en
@@ -266,7 +269,7 @@ BCRYPT_ROUNDS=12
 LOG_CHANNEL=stack
 LOG_STACK=single
 LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=debug
+LOG_LEVEL=error
 
 DB_CONNECTION=sqlite
 DB_DATABASE=/var/www/html/database/database.sqlite
@@ -325,41 +328,45 @@ echo "✅ Environment file created successfully!"
 echo "🛑 Stopping any existing containers..."
 $DOCKER_COMPOSE down --remove-orphans 2>/dev/null || true
 
-# Clean up old images
-echo "🗑️ Cleaning up old Docker images..."
-docker rmi telebot-app:latest 2>/dev/null || true
-docker system prune -f 2>/dev/null || true
+# Clean up old images and containers
+echo "🗑️ Cleaning up Docker..."
+docker container prune -f 2>/dev/null || true
+docker image prune -f 2>/dev/null || true
+docker volume prune -f 2>/dev/null || true
 
 # Build and start containers
 echo "🔨 Building and starting TeleBot containers..."
 echo "   ⏳ This may take a few minutes on first run..."
-if ! $DOCKER_COMPOSE up --build -d; then
-    echo "❌ Failed to start containers. Checking for issues..."
-    echo "🔍 Docker Compose logs:"
-    $DOCKER_COMPOSE logs
-    echo ""
-    echo "🔍 Docker system info:"
-    docker system df
-    echo ""
-    echo "🔍 Available disk space:"
+
+# Build with no cache to ensure fresh build
+if ! $DOCKER_COMPOSE build --no-cache; then
+    echo "❌ Failed to build containers. Checking for issues..."
     df -h
+    docker system df
+    exit 1
+fi
+
+# Start containers
+if ! $DOCKER_COMPOSE up -d; then
+    echo "❌ Failed to start containers. Checking logs..."
+    $DOCKER_COMPOSE logs
     exit 1
 fi
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to initialize..."
-sleep 30
+sleep 45
 
-# Health check function
+# Extended health check function
 check_service() {
     local service_name="$1"
     local port="$2"
-    local timeout=60
+    local timeout=120
     local count=0
 
     echo "🔍 Checking $service_name on port $port..."
     while [ $count -lt $timeout ]; do
-        if curl -s http://localhost:$port > /dev/null 2>&1; then
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:$port | grep -E "^(200|302|404)$" > /dev/null; then
             echo "✅ $service_name is running!"
             return 0
         fi
@@ -375,14 +382,21 @@ echo "🏥 Running health checks..."
 APP_RUNNING=false
 NPM_RUNNING=false
 
+# Check TeleBot app
 if docker ps | grep -q "telebot-app"; then
+    echo "🔍 TeleBot container is running, checking application..."
     if check_service "TeleBot App" 8000; then
         APP_RUNNING=true
+    else
+        echo "🔍 TeleBot app not responding, checking logs..."
+        $DOCKER_COMPOSE logs app | tail -30
     fi
 else
     echo "❌ TeleBot app container not found"
+    $DOCKER_COMPOSE ps
 fi
 
+# Check Nginx Proxy Manager
 if docker ps | grep -q "npm"; then
     if check_service "Nginx Proxy Manager" 81; then
         NPM_RUNNING=true
@@ -390,9 +404,6 @@ if docker ps | grep -q "npm"; then
 else
     echo "❌ Nginx Proxy Manager container not found"
 fi
-
-# Get server IP
-SERVER_IP=$(curl -s http://ipv4.icanhazip.com/ 2>/dev/null || curl -s http://ifconfig.me/ 2>/dev/null || echo "YOUR_SERVER_IP")
 
 # Final status report
 echo ""
@@ -408,8 +419,18 @@ if [ "$APP_RUNNING" = true ]; then
     echo "   👤 Admin Login: admin@telebot.com / admin123"
 else
     echo "❌ TeleBot Application: FAILED"
-    echo "🔍 Checking logs..."
-    $DOCKER_COMPOSE logs app | tail -20
+    echo ""
+    echo "🔍 Debugging Information:"
+    echo "Container Status:"
+    $DOCKER_COMPOSE ps
+    echo ""
+    echo "Recent App Logs:"
+    $DOCKER_COMPOSE logs app | tail -50
+    echo ""
+    echo "🔧 Try manual restart:"
+    echo "   cd /opt/telebot"
+    echo "   docker compose restart app"
+    echo "   docker compose logs app -f"
 fi
 
 if [ "$NPM_RUNNING" = true ]; then
@@ -432,7 +453,7 @@ echo "3. 🤖 Set up your Telegram bot webhook (if needed)"
 echo "4. 💳 Test Stripe payments in your application"
 echo ""
 echo "🆘 Troubleshooting:"
-echo "   📋 View logs: cd /opt/telebot && $DOCKER_COMPOSE logs"
+echo "   📋 View logs: cd /opt/telebot && $DOCKER_COMPOSE logs app -f"
 echo "   🔄 Restart: cd /opt/telebot && $DOCKER_COMPOSE restart"
 echo "   🛑 Stop: cd /opt/telebot && $DOCKER_COMPOSE down"
 echo "   🚀 Start: cd /opt/telebot && $DOCKER_COMPOSE up -d"
@@ -456,7 +477,7 @@ fi
 
 case "$1" in
     logs)
-        $DC logs -f
+        $DC logs app -f
         ;;
     restart)
         $DC restart
@@ -472,16 +493,23 @@ case "$1" in
         ;;
     update)
         git pull origin master
-        $DC up --build -d
+        $DC build --no-cache
+        $DC up -d
+        ;;
+    rebuild)
+        $DC down
+        $DC build --no-cache
+        $DC up -d
         ;;
     *)
         echo "TeleBot Management Commands:"
-        echo "  telebot logs    - View logs"
+        echo "  telebot logs    - View app logs"
         echo "  telebot restart - Restart services"
         echo "  telebot stop    - Stop services"
         echo "  telebot start   - Start services"
         echo "  telebot status  - Show status"
         echo "  telebot update  - Update and rebuild"
+        echo "  telebot rebuild - Force rebuild"
         ;;
 esac
 EOF

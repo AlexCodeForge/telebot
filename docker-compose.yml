@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
     # Laravel Telebot Application
-    telebot:
+    app:
         build: .
         container_name: telebot-app
         restart: unless-stopped
@@ -11,24 +11,19 @@ services:
         volumes:
             - ./storage:/var/www/html/storage
             - ./database/database.sqlite:/var/www/html/database/database.sqlite
-        environment:
-            - APP_NAME=TeleBot
-            - APP_ENV=production
-            - APP_KEY=base64:${APP_KEY}
-            - APP_DEBUG=false
-            - APP_URL=https://${DOMAIN}
-            - DB_CONNECTION=sqlite
-            - DB_DATABASE=/var/www/html/database/database.sqlite
-            - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-            - STRIPE_KEY=${STRIPE_KEY}
-            - STRIPE_SECRET=${STRIPE_SECRET}
-            - CASHIER_CURRENCY=usd
-            - CASHIER_CURRENCY_LOCALE=en_US
+        env_file:
+            - .env
         networks:
             - proxy-network
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost/"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 60s
 
     # Nginx Proxy Manager
-    nginx-proxy-manager:
+    npm:
         image: "jc21/nginx-proxy-manager:latest"
         container_name: nginx-proxy-manager
         restart: unless-stopped
@@ -41,6 +36,12 @@ services:
             - npm-letsencrypt:/etc/letsencrypt
         networks:
             - proxy-network
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:81/"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 30s
 
 networks:
     proxy-network:
