@@ -37,8 +37,8 @@
                         <i class="fas fa-check-circle"></i> <strong>Sync User Configured:</strong><br>
                         <strong>Name:</strong> {{ $syncUserName }}<br>
                         <strong>Telegram ID:</strong> {{ $syncUserTelegramId }}<br>
-                        <small class="text-muted">Only videos from this user will be auto-captured or available for manual
-                            import.</small>
+                        <small class="text-muted">Only videos from this user will be auto-captured. The bot will interact
+                            normally with all other users but ignore their videos.</small>
                     </div>
                     <button type="button" class="btn btn-danger btn-sm" onclick="removeSyncUser()">
                         <i class="fas fa-trash"></i> Remove Sync User
@@ -67,49 +67,6 @@
                 @endif
             </div>
         </div>
-
-        {{-- Bot Privacy Settings --}}
-        @if ($syncUserTelegramId)
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-shield-alt text-info"></i> Bot Privacy Settings
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @php
-                        $restrictToSyncUser = \App\Models\Setting::get('restrict_to_sync_user', false);
-                    @endphp
-
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="restrictToSyncUser"
-                            {{ $restrictToSyncUser ? 'checked' : '' }} onchange="toggleBotRestriction()">
-                        <label class="form-check-label" for="restrictToSyncUser">
-                            <strong>Restrict bot to sync user only</strong>
-                        </label>
-                    </div>
-                    <small class="text-muted d-block mt-2">
-                        <i class="fas fa-info-circle"></i>
-                        When enabled, the bot will only respond to messages from <strong>{{ $syncUserName }}</strong>
-                        ({{ $syncUserTelegramId }}) and ignore all other users.
-                    </small>
-
-                    <div id="restriction-status" class="mt-3">
-                        @if ($restrictToSyncUser)
-                            <div class="alert alert-info mb-0">
-                                <i class="fas fa-lock"></i> <strong>Bot is restricted</strong> - Only {{ $syncUserName }}
-                                can interact with the bot.
-                            </div>
-                        @else
-                            <div class="alert alert-warning mb-0">
-                                <i class="fas fa-unlock"></i> <strong>Bot is open</strong> - Anyone can send messages to the
-                                bot, but only {{ $syncUserName }}'s videos will be captured.
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        @endif
 
         {{-- Webhook Management --}}
         <div class="card mb-4">
@@ -172,7 +129,7 @@
         </div>
 
         {{-- Manual Video Import - Only show when webhook is disabled --}}
-        <div class="card mb-4" id="manual-import-section">
+        <div class="card mb-4" id="manual-import-section" style="display: none;">
             <div class="card-header">
                 <h5 class="mb-0">
                     <i class="fas fa-tools text-info"></i> Manual Video Import
@@ -185,42 +142,34 @@
                         import.
                     </div>
                 @else
-                    <div id="webhook-active-notice" class="alert alert-info" style="display: none;">
-                        <i class="fas fa-info-circle"></i> <strong>Manual import is disabled</strong> because webhook is
-                        active.
-                        Videos are being automatically captured. If you need to manually import, disable the webhook first.
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle"></i> Manual import is only available when webhook is disabled.
+                        Use "Test Bot Connection" above to find video file IDs, then import them here.
+                    </p>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <label for="manual-file-id" class="form-label">Video File ID</label>
+                            <input type="text" id="manual-file-id" class="form-control"
+                                placeholder="Paste file ID from bot test results">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="manual-price" class="form-label">Price ($)</label>
+                            <input type="number" id="manual-price" class="form-control" placeholder="Price"
+                                value="4.99" step="0.01">
+                        </div>
                     </div>
 
-                    <div id="manual-import-controls">
-                        <p class="text-muted">
-                            <i class="fas fa-info-circle"></i> Manual import is only available when webhook is disabled.
-                            Use "Test Bot Connection" above to find video file IDs, then import them here.
-                        </p>
-
-                        <div class="row">
-                            <div class="col-md-8">
-                                <label for="manual-file-id" class="form-label">Video File ID</label>
-                                <input type="text" id="manual-file-id" class="form-control"
-                                    placeholder="Paste file ID from bot test results">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="manual-price" class="form-label">Price ($)</label>
-                                <input type="number" id="manual-price" class="form-control" placeholder="Price"
-                                    value="4.99" step="0.01">
-                            </div>
+                    <div class="row mt-3">
+                        <div class="col-md-8">
+                            <label for="manual-title" class="form-label">Video Title</label>
+                            <input type="text" id="manual-title" class="form-control" placeholder="Video title"
+                                value="Imported Video">
                         </div>
-
-                        <div class="row mt-3">
-                            <div class="col-md-8">
-                                <label for="manual-title" class="form-label">Video Title</label>
-                                <input type="text" id="manual-title" class="form-control" placeholder="Video title"
-                                    value="Imported Video">
-                            </div>
-                            <div class="col-md-4 d-flex align-items-end">
-                                <button type="button" class="btn btn-success w-100" onclick="manualImportVideo()">
-                                    <i class="fas fa-upload"></i> Import Video
-                                </button>
-                            </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-success w-100" onclick="manualImportVideo()">
+                                <i class="fas fa-upload"></i> Import Video
+                            </button>
                         </div>
                     </div>
                 @endif
@@ -379,21 +328,18 @@
 
         // Update manual import section based on webhook status
         function updateManualImportVisibility() {
-            const webhookNotice = document.getElementById('webhook-active-notice');
-            const manualControls = document.getElementById('manual-import-controls');
+            const manualImportSection = document.getElementById('manual-import-section');
 
             if (isWebhookActive) {
-                webhookNotice.style.display = 'block';
-                manualControls.style.display = 'none';
+                manualImportSection.style.display = 'none';
             } else {
-                webhookNotice.style.display = 'none';
-                manualControls.style.display = 'block';
+                manualImportSection.style.display = 'block';
             }
         }
 
         // Toggle webhook
         function toggleWebhook(action) {
-            const url = action === 'activate' ?
+            const url = action === 'reactivate' ?
                 '{{ route('admin.videos.reactivate-webhook') }}' :
                 '{{ route('admin.videos.deactivate-webhook') }}';
 
@@ -416,39 +362,6 @@
                 .catch(error => {
                     showAlert('danger', 'Network error occurred');
                     console.error('Webhook toggle failed:', error);
-                });
-        }
-
-        // Toggle bot restriction
-        function toggleBotRestriction() {
-            const checkbox = document.getElementById('restrictToSyncUser');
-            const isRestricted = checkbox.checked;
-
-            fetch('{{ route('admin.videos.toggle-bot-restriction') }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        restrict_to_sync_user: isRestricted
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert('success', data.message);
-                        setTimeout(() => window.location.reload(), 1500);
-                    } else {
-                        showAlert('danger', data.error || 'Failed to update restriction');
-                        // Revert checkbox state on error
-                        checkbox.checked = !isRestricted;
-                    }
-                })
-                .catch(error => {
-                    showAlert('danger', 'Network error occurred');
-                    checkbox.checked = !isRestricted;
-                    console.error('Toggle restriction failed:', error);
                 });
         }
 

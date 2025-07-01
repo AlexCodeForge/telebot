@@ -41,9 +41,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('admin.videos.set-sync-user');
     Route::post('/admin/videos/remove-sync-user', [VideoController::class, 'removeSyncUser'])->name('admin.videos.remove-sync-user');
 
-    // Bot settings
-    Route::post('/admin/videos/toggle-bot-restriction', [VideoController::class, 'toggleBotRestriction'])->name('admin.videos.toggle-bot-restriction');
-
     // Testing and manual import
     Route::get('/admin/videos/test-connection', [VideoController::class, 'testConnection'])->name('admin.videos.test-connection');
     Route::post('/admin/videos/manual-import', [VideoController::class, 'manualImport'])->name('admin.videos.manual-import');

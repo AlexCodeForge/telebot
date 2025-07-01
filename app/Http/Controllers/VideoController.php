@@ -17,7 +17,7 @@ class VideoController extends Controller
      */
     public function index()
     {
-        $videos = Video::where('price', '>', 0)->get();
+        $videos = Video::orderBy('created_at', 'desc')->get();
         return view('videos.index', compact('videos'));
     }
 
@@ -313,9 +313,9 @@ class VideoController extends Controller
                     $updates = $updatesResponse->json()['result'];
 
                     // Filter and analyze messages from sync user
-                    $syncUserMessages = array_filter($updates, function($update) use ($syncUserTelegramId) {
+                    $syncUserMessages = array_filter($updates, function ($update) use ($syncUserTelegramId) {
                         return isset($update['message']['from']['id']) &&
-                               $update['message']['from']['id'] == $syncUserTelegramId;
+                            $update['message']['from']['id'] == $syncUserTelegramId;
                     });
 
                     $messageAnalysis = [];
@@ -325,8 +325,8 @@ class VideoController extends Controller
                         $message = $update['message'];
                         $hasVideo = isset($message['video']);
                         $hasVideoDocument = isset($message['document']) &&
-                                          isset($message['document']['mime_type']) &&
-                                          str_starts_with($message['document']['mime_type'], 'video/');
+                            isset($message['document']['mime_type']) &&
+                            str_starts_with($message['document']['mime_type'], 'video/');
 
                         $videoFileId = null;
                         $documentFileId = null;
@@ -368,7 +368,6 @@ class VideoController extends Controller
             }
 
             return response()->json($responseData);
-
         } catch (\Exception $e) {
             Log::error('Test connection failed: ' . $e->getMessage());
             return response()->json([
@@ -433,7 +432,6 @@ class VideoController extends Controller
                 'message' => 'Video imported successfully!',
                 'video_id' => $video->id
             ]);
-
         } catch (\Exception $e) {
             Log::error('Manual import failed: ' . $e->getMessage());
             return response()->json([
@@ -449,124 +447,115 @@ class VideoController extends Controller
     public function webhook(Request $request)
     {
         try {
-            Log::info('Webhook received', ['data' => $request->all()]);
+            $update = $request->all();
+            Log::info('Webhook received:', $update);
 
-            $data = $request->all();
-
-            // Check if this is a message with video
-            if (!isset($data['message'])) {
-                Log::info('No message in webhook data');
-                return response()->json(['status' => 'no_message']);
+            // Check if we have a message with video
+            if (!isset($update['message'])) {
+                Log::info('No message in update');
+                return response()->json(['ok' => true]);
             }
 
-            $message = $data['message'];
+            $message = $update['message'];
             $fromUser = $message['from'] ?? null;
 
-            if (!$fromUser || !isset($fromUser['id'])) {
+            if (!$fromUser) {
                 Log::info('No from user in message');
-                return response()->json(['status' => 'no_user']);
+                return response()->json(['ok' => true]);
             }
 
             $fromUserId = $fromUser['id'];
             $syncUserTelegramId = Setting::get('sync_user_telegram_id');
 
-            // Check if we have a configured sync user
-            if (!$syncUserTelegramId) {
-                Log::warning('No sync user configured, ignoring webhook');
-                return response()->json(['status' => 'no_sync_user']);
-            }
-
-            // Check bot restriction setting
-            $restrictToSyncUser = Setting::get('restrict_to_sync_user', false);
-
-            if ($restrictToSyncUser && $fromUserId != $syncUserTelegramId) {
-                Log::info('Message from non-sync user while restriction is enabled', [
-                    'from_user_id' => $fromUserId,
-                    'sync_user_id' => $syncUserTelegramId
-                ]);
-
-                // Send a polite rejection message
-                $this->sendTelegramMessage($fromUserId,
-                    "Sorry, this bot is currently restricted to authorized users only.");
-
-                return response()->json(['status' => 'user_restricted']);
-            }
-
-            // Only process videos from sync user
-            if ($fromUserId != $syncUserTelegramId) {
-                Log::info('Message from non-sync user, ignoring', [
-                    'from_user_id' => $fromUserId,
-                    'sync_user_id' => $syncUserTelegramId
-                ]);
-
-                // Send an informative message to non-sync users
-                $syncUserName = Setting::get('sync_user_name', 'authorized user');
-                $this->sendTelegramMessage($fromUserId,
-                    "Hello! This bot only processes videos from {$syncUserName}. Your message has been ignored.");
-
-                return response()->json(['status' => 'not_sync_user']);
-            }
-
-            // Check if message has video
+            // Get video from message
             $video = null;
             $fileId = null;
-            $filename = null;
 
             if (isset($message['video'])) {
                 $video = $message['video'];
                 $fileId = $video['file_id'];
-                $filename = $video['file_name'] ?? 'video_' . time();
-            } elseif (isset($message['document']) &&
-                      isset($message['document']['mime_type']) &&
-                      str_starts_with($message['document']['mime_type'], 'video/')) {
+            } elseif (
+                isset($message['document']) &&
+                isset($message['document']['mime_type']) &&
+                strpos($message['document']['mime_type'], 'video/') === 0
+            ) {
                 $video = $message['document'];
                 $fileId = $video['file_id'];
-                $filename = $video['file_name'] ?? 'video_' . time();
             }
 
-            if (!$video || !$fileId) {
-                Log::info('No video found in message from sync user');
-                return response()->json(['status' => 'no_video']);
+            // If this user sent a video but is not the sync user, respond but don't capture
+            if ($fileId && $fromUserId != $syncUserTelegramId) {
+                $this->sendTelegramMessage(
+                    $fromUserId,
+                    "Thanks for the video! However, only the configured sync user's videos are automatically captured by this bot. You can still use other bot features normally! 😊"
+                );
+
+                Log::info("Video ignored from non-sync user: {$fromUserId} (sync user: {$syncUserTelegramId})");
+                return response()->json(['ok' => true]);
             }
 
-            // Extract video information
-            $caption = $message['caption'] ?? 'Captured Video ' . now()->format('M j, Y H:i');
-            $duration = $video['duration'] ?? 0;
-            $width = $video['width'] ?? 0;
-            $height = $video['height'] ?? 0;
-            $fileSize = $video['file_size'] ?? 0;
+            // If this user sent a video and IS the sync user, capture it
+            if ($fileId && $fromUserId == $syncUserTelegramId) {
+                $caption = $message['caption'] ?? 'Auto-captured Video';
+                $defaultPrice = 4.99;
 
-            // Create video record
-            $videoRecord = Video::create([
-                'title' => $caption,
-                'description' => "Auto-captured from Telegram",
-                'price' => 4.99, // Default price
-                'telegram_file_id' => $fileId,
-                'filename' => $filename,
-                'duration' => $duration,
-                'width' => $width,
-                'height' => $height,
-                'file_size' => $fileSize,
-                'mime_type' => $video['mime_type'] ?? 'video/mp4'
-            ]);
+                $videoRecord = Video::create([
+                    'title' => $caption,
+                    'description' => "Auto-captured from Telegram",
+                    'telegram_file_id' => $fileId,
+                    'price' => $defaultPrice,
+                ]);
 
-            Log::info('Video captured successfully', [
-                'video_id' => $videoRecord->id,
-                'file_id' => $fileId,
-                'title' => $caption
-            ]);
+                $this->sendTelegramMessage(
+                    $fromUserId,
+                    "✅ Video captured successfully!\n\n" .
+                        "📹 Title: {$caption}\n" .
+                        "💰 Price: $" . number_format($defaultPrice, 2) . "\n" .
+                        "🆔 File ID: {$fileId}"
+                );
 
-            // Send confirmation to user
-            $this->sendTelegramMessage($fromUserId,
-                "✅ Video captured successfully!\n\nTitle: {$caption}\nVideo ID: {$videoRecord->id}");
+                Log::info("Video auto-captured from sync user: {$fromUserId}", [
+                    'video_id' => $videoRecord->id,
+                    'file_id' => $fileId
+                ]);
 
-            return response()->json(['status' => 'success', 'video_id' => $videoRecord->id]);
+                return response()->json(['ok' => true]);
+            }
 
+            // For any other messages (not videos), respond normally
+            if (isset($message['text'])) {
+                $text = $message['text'];
+
+                // Handle basic commands
+                if (strtolower($text) === '/start') {
+                    $this->sendTelegramMessage(
+                        $fromUserId,
+                        "👋 Hello! I'm the video capture bot.\n\n" .
+                            "🎥 Send me videos and I'll help you manage them!\n" .
+                            "💡 Type /help for more information."
+                    );
+                } elseif (strtolower($text) === '/help') {
+                    $this->sendTelegramMessage(
+                        $fromUserId,
+                        "🤖 Bot Commands:\n\n" .
+                            "/start - Start the bot\n" .
+                            "/help - Show this help message\n\n" .
+                            "📹 Just send me a video and I'll capture it automatically!"
+                    );
+                } else {
+                    $this->sendTelegramMessage(
+                        $fromUserId,
+                        "Thanks for your message! Send me a video to get started. 🎥"
+                    );
+                }
+            }
+
+            return response()->json(['ok' => true]);
         } catch (\Exception $e) {
-            Log::error('Webhook processing failed: ' . $e->getMessage(), [
+            Log::error('Webhook error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()]);
+            return response()->json(['ok' => true]);
         }
     }
 
