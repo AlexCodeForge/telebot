@@ -131,9 +131,21 @@ echo "✅ Using Docker Compose command: $DOCKER_COMPOSE_CMD"
 
 # Check if we're in the telebot directory
 if [ ! -f "docker-compose.yml" ]; then
-    echo "📥 Cloning TeleBot repository..."
-    git clone https://github.com/AlexCodeForge/telebot.git
-    cd telebot
+    if [ -d "telebot" ]; then
+        echo "📁 Found existing telebot directory, updating..."
+        cd telebot
+        git pull origin master || {
+            echo "⚠️  Failed to update existing repository. Removing and re-cloning..."
+            cd ..
+            rm -rf telebot
+            git clone https://github.com/AlexCodeForge/telebot.git
+            cd telebot
+        }
+    else
+        echo "📥 Cloning TeleBot repository..."
+        git clone https://github.com/AlexCodeForge/telebot.git
+        cd telebot
+    fi
 else
     echo "📁 Using existing TeleBot directory"
 fi
