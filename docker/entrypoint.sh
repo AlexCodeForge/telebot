@@ -48,6 +48,10 @@ chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 chmod 664 /var/www/html/database/database.sqlite
 
+# Regenerate composer autoload (critical for migrations and seeders)
+echo "🔄 Regenerating composer autoload..."
+composer dump-autoload --optimize
+
 # Test database file accessibility
 echo "🔍 Testing database file access..."
 if [ ! -w /var/www/html/database/database.sqlite ]; then
@@ -117,10 +121,20 @@ try {
 
 # Seed database with admin user and sample videos
 echo "🌱 Seeding database..."
-if ! php artisan db:seed --force --class=DatabaseSeeder; then
-    echo "⚠️  Seeding failed, trying individual seeders..."
-    php artisan db:seed --force --class=AdminUserSeeder || echo "⚠️  Admin seeder failed"
-    php artisan db:seed --force --class=VideosTableSeeder || echo "⚠️  Videos seeder failed"
+if php artisan db:seed --force --class=DatabaseSeeder; then
+    echo "✅ Database seeding completed successfully!"
+else
+    echo "⚠️  DatabaseSeeder failed, trying individual seeders..."
+    if php artisan db:seed --force --class=AdminUserSeeder; then
+        echo "✅ Admin user seeder completed"
+    else
+        echo "❌ Admin user seeder failed"
+    fi
+    if php artisan db:seed --force --class=VideosTableSeeder; then
+        echo "✅ Videos seeder completed"
+    else
+        echo "❌ Videos seeder failed"
+    fi
 fi
 
 # Cache configuration for production (only after migrations)
