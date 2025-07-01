@@ -9,6 +9,7 @@ RUN apk add --no-cache \
     nginx \
     supervisor \
     sqlite \
+    sqlite-dev \
     nodejs \
     npm \
     git \
@@ -18,6 +19,9 @@ RUN apk add --no-cache \
     libpng-dev \
     libzip-dev \
     oniguruma-dev \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo_sqlite zip mbstring gd
 
 # Install Composer
