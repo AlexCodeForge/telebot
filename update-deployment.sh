@@ -21,6 +21,22 @@ fi
 
 echo "📦 Using Docker Compose command: $DOCKER_COMPOSE"
 
+# Clone or update repository
+REPO_DIR="/opt/telebot"
+if [ -d "$REPO_DIR" ]; then
+    echo "📁 Updating existing repository..."
+    cd "$REPO_DIR"
+    git pull origin master
+else
+    echo "📁 Cloning repository..."
+    git clone https://github.com/AlexCodeForge/telebot.git "$REPO_DIR"
+    cd "$REPO_DIR"
+fi
+
+# Make sure we're in the right directory
+cd "$REPO_DIR"
+echo "📂 Working in directory: $(pwd)"
+
 # Stop and remove existing containers
 echo "🛑 Stopping existing containers..."
 $DOCKER_COMPOSE down --remove-orphans || true
