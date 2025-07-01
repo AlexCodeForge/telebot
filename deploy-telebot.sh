@@ -236,7 +236,33 @@ $DOCKER_COMPOSE_CMD down 2>/dev/null || true
 
 # Build and start containers
 echo "🚀 Building and starting containers..."
-$DOCKER_COMPOSE_CMD up --build -d
+if ! $DOCKER_COMPOSE_CMD up --build -d; then
+    echo "⚠️  Alpine build failed. Trying Ubuntu-based fallback..."
+
+    # Use Ubuntu-based Dockerfile as fallback
+    if [ -f "Dockerfile.ubuntu" ]; then
+        echo "🔄 Switching to Ubuntu-based Docker image..."
+        mv Dockerfile Dockerfile.alpine.backup
+        mv Dockerfile.ubuntu Dockerfile
+
+        # Try building again with Ubuntu base
+        if ! $DOCKER_COMPOSE_CMD up --build -d; then
+            echo "❌ Both Alpine and Ubuntu builds failed."
+            echo "🔍 Checking Docker logs..."
+            $DOCKER_COMPOSE_CMD logs
+            exit 1
+        else
+            echo "✅ Ubuntu-based build successful!"
+        fi
+    else
+        echo "❌ Alpine build failed and no Ubuntu fallback available."
+        echo "🔍 Checking Docker logs..."
+        $DOCKER_COMPOSE_CMD logs
+        exit 1
+    fi
+else
+    echo "✅ Alpine-based build successful!"
+fi
 
 # Wait for containers to be ready
 echo "⏳ Waiting for containers to start..."

@@ -1,41 +1,30 @@
-# Use official PHP 8.2 FPM image with Alpine 3.18 (more stable)
-FROM php:8.2-fpm-alpine3.18
+# Ubuntu-based fallback Dockerfile
+FROM php:8.2-fpm
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Update package repositories and install system dependencies in stages
-RUN apk update && apk upgrade && \
-    # Install basic packages first
-    apk add --no-cache \
-        nginx \
-        supervisor \
-        git \
-        curl \
-        bash && \
-    # Install development packages
-    apk add --no-cache \
-        sqlite \
-        sqlite-dev \
-        zlib-dev \
-        libzip-dev \
-        libpng-dev \
-        freetype-dev \
-        libjpeg-turbo-dev \
-        oniguruma-dev \
-        bzip2-dev \
-        xz-dev \
-        pkgconfig && \
-    # Install Node.js and npm
-    apk add --no-cache \
-        nodejs \
-        npm \
-        zip \
-        unzip
-
-# Configure and install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install pdo_sqlite zip mbstring gd
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    nginx \
+    supervisor \
+    sqlite3 \
+    libsqlite3-dev \
+    nodejs \
+    npm \
+    git \
+    curl \
+    zip \
+    unzip \
+    libpng-dev \
+    libzip-dev \
+    libonig-dev \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_sqlite zip mbstring gd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
