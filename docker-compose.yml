@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+    # Laravel Telebot Application
+    telebot:
+        build: .
+        container_name: telebot-app
+        restart: unless-stopped
+        ports:
+            - "8000:80"
+        volumes:
+            - ./storage:/var/www/html/storage
+            - ./database/database.sqlite:/var/www/html/database/database.sqlite
+        environment:
+            - APP_NAME=TeleBot
+            - APP_ENV=production
+            - APP_KEY=base64:${APP_KEY}
+            - APP_DEBUG=false
+            - APP_URL=https://${DOMAIN}
+            - DB_CONNECTION=sqlite
+            - DB_DATABASE=/var/www/html/database/database.sqlite
+            - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+            - STRIPE_KEY=${STRIPE_KEY}
+            - STRIPE_SECRET=${STRIPE_SECRET}
+            - CASHIER_CURRENCY=usd
+            - CASHIER_CURRENCY_LOCALE=en_US
+        networks:
+            - proxy-network
+
+    # Nginx Proxy Manager
+    nginx-proxy-manager:
+        image: "jc21/nginx-proxy-manager:latest"
+        container_name: nginx-proxy-manager
+        restart: unless-stopped
+        ports:
+            - "80:80" # HTTP
+            - "443:443" # HTTPS
+            - "81:81" # Admin panel
+        volumes:
+            - npm-data:/data
+            - npm-letsencrypt:/etc/letsencrypt
+        networks:
+            - proxy-network
+
+networks:
+    proxy-network:
+        driver: bridge
+
+volumes:
+    npm-data:
+    npm-letsencrypt:
