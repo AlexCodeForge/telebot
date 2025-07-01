@@ -21,10 +21,56 @@ echo "   💳 Stripe Public Key: ${STRIPE_PUBLIC_KEY:0:20}..."
 echo "   💳 Stripe Secret Key: ${STRIPE_SECRET_KEY:0:20}..."
 echo "   🌐 Domain: $DOMAIN"
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo "❌ Docker is not running. Please start Docker first."
-    exit 1
+# Function to install Docker
+install_docker() {
+    echo "🐳 Installing Docker..."
+
+    # Update package index
+    apt-get update
+
+    # Install prerequisites
+    apt-get install -y ca-certificates curl gnupg lsb-release
+
+    # Add Docker's official GPG key
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+    # Set up the repository
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # Update package index again
+    apt-get update
+
+    # Install Docker Engine
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    # Start and enable Docker
+    systemctl start docker
+    systemctl enable docker
+
+    # Add current user to docker group (if not root)
+    if [ "$EUID" -ne 0 ]; then
+        usermod -aG docker $USER
+        echo "⚠️  Please log out and back in for Docker group changes to take effect"
+    fi
+
+    echo "✅ Docker installed successfully!"
+}
+
+# Check if Docker is installed and running
+if ! command -v docker &> /dev/null; then
+    echo "🔍 Docker not found. Installing Docker..."
+    install_docker
+elif ! docker info > /dev/null 2>&1; then
+    echo "🔍 Docker found but not running. Starting Docker..."
+    systemctl start docker
+    sleep 5
+    if ! docker info > /dev/null 2>&1; then
+        echo "❌ Failed to start Docker. Trying to reinstall..."
+        install_docker
+    fi
+else
+    echo "✅ Docker is already installed and running"
 fi
 
 # Detect docker-compose command
@@ -38,6 +84,13 @@ else
 fi
 
 echo "📦 Using Docker Compose command: $DOCKER_COMPOSE"
+
+# Install git if not present
+if ! command -v git &> /dev/null; then
+    echo "📦 Installing git..."
+    apt-get update
+    apt-get install -y git
+fi
 
 # Clone or update repository
 REPO_DIR="/opt/telebot"
