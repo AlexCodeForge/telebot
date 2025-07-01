@@ -247,6 +247,14 @@ echo "📂 Working in directory: $(pwd)"
 # Get server IP for proper URL configuration
 SERVER_IP=$(curl -s http://ipv4.icanhazip.com/ 2>/dev/null || curl -s http://ifconfig.me/ 2>/dev/null || echo "localhost")
 
+# Create database directory on host with proper permissions
+echo "📁 Creating database directory on host..."
+mkdir -p database storage
+touch database/database.sqlite
+chown -R 1000:1000 database storage
+chmod 775 database
+chmod 664 database/database.sqlite
+
 # Create .env file with the provided credentials
 echo "📝 Creating environment configuration..."
 cat > .env << EOF
