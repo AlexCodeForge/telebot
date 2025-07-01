@@ -52,6 +52,14 @@ chmod 664 /var/www/html/database/database.sqlite
 echo "🔄 Regenerating composer autoload..."
 composer dump-autoload --optimize
 
+# Debug: List available migrations
+echo "🔍 Available migration files:"
+ls -la /var/www/html/database/migrations/ || echo "❌ No migrations directory!"
+
+# Debug: List available seeders
+echo "🔍 Available seeder files:"
+ls -la /var/www/html/database/seeders/ || echo "❌ No seeders directory!"
+
 # Test database file accessibility
 echo "🔍 Testing database file access..."
 if [ ! -w /var/www/html/database/database.sqlite ]; then
@@ -90,13 +98,24 @@ echo "🔍 Checking database migration status..."
 if ! php artisan migrate:status &>/dev/null; then
     echo "📊 Database appears empty, running initial migrations..."
     if ! php artisan migrate --force; then
-        echo "❌ Initial migrations failed! Trying step by step..."
-        php artisan migrate --force --step || echo "❌ Step migrations also failed"
+        echo "❌ Initial migrations failed! Trying fresh migration..."
+        # Delete database and recreate
+        rm -f /var/www/html/database/database.sqlite
+        touch /var/www/html/database/database.sqlite
+        chown www-data:www-data /var/www/html/database/database.sqlite
+        chmod 664 /var/www/html/database/database.sqlite
+
+        # Try fresh migration
+        php artisan migrate:fresh --force || echo "❌ Fresh migration also failed"
     fi
 else
     echo "📊 Database has migrations, checking if we need to run new ones..."
-    if ! php artisan migrate --force; then
-        echo "❌ Migration update failed!"
+    # Force check if any migrations show as nothing to migrate
+    MIGRATE_OUTPUT=$(php artisan migrate --force 2>&1)
+    echo "$MIGRATE_OUTPUT"
+    if echo "$MIGRATE_OUTPUT" | grep -q "Nothing to migrate"; then
+        echo "⚠️  'Nothing to migrate' detected but tables might be missing. Forcing fresh migration..."
+        php artisan migrate:fresh --force || echo "❌ Forced fresh migration failed"
     fi
 fi
 
