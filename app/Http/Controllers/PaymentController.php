@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Video;
 use App\Models\User;
 use App\Models\Purchase;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -16,10 +17,34 @@ use Stripe\Checkout\Session;
 class PaymentController extends Controller
 {
     /**
+     * Get Stripe secret key from settings or config
+     */
+    private function getStripeSecretKey()
+    {
+        return Setting::get('stripe_secret') ?: config('cashier.secret');
+    }
+
+    /**
+     * Get Stripe publishable key from settings or config
+     */
+    private function getStripePublishableKey()
+    {
+        return Setting::get('stripe_key') ?: config('cashier.key');
+    }
+
+    /**
      * Show payment form for a video
      */
     public function form(Video $video)
     {
+        // Check if Stripe keys are configured
+        $stripeKey = $this->getStripePublishableKey();
+        $stripeSecret = $this->getStripeSecretKey();
+
+        if (!$stripeKey || !$stripeSecret) {
+            return back()->withErrors(['payment' => 'Payment system not configured. Please contact the administrator.']);
+        }
+
         return view('payment.form', compact('video'));
     }
 
@@ -32,7 +57,12 @@ class PaymentController extends Controller
             'telegram_username' => 'required|string|max:255',
         ]);
 
-        Stripe::setApiKey(config('services.stripe.secret'));
+        $stripeSecret = $this->getStripeSecretKey();
+        if (!$stripeSecret) {
+            return back()->withErrors(['payment' => 'Payment system not configured.']);
+        }
+
+        Stripe::setApiKey($stripeSecret);
 
         try {
             $session = Session::create([

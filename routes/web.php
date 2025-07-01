@@ -11,10 +11,10 @@ Route::get('/', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/{video}', [VideoController::class, 'show'])->name('videos.show');
 
 // Payment routes
-Route::get('/payment/form', [PaymentController::class, 'showForm'])->name('payment.form');
-Route::post('/payment/process', [PaymentController::class, 'processPayment'])->name('payment.process');
-Route::get('/payment/success', [PaymentController::class, 'paymentSuccess'])->name('payment.success');
-Route::get('/payment/cancel', [PaymentController::class, 'paymentCancel'])->name('payment.cancel');
+Route::get('/payment/{video}/form', [PaymentController::class, 'form'])->name('payment.form');
+Route::post('/payment/{video}/process', [PaymentController::class, 'process'])->name('payment.process');
+Route::get('/payment/{video}/success', [PaymentController::class, 'success'])->name('payment.success');
+Route::get('/payment/{video}/cancel', [PaymentController::class, 'cancel'])->name('payment.cancel');
 
 // Authentication routes
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -40,6 +40,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Sync user management
     Route::post('/admin/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('admin.videos.set-sync-user');
     Route::post('/admin/videos/remove-sync-user', [VideoController::class, 'removeSyncUser'])->name('admin.videos.remove-sync-user');
+
+    // Token management
+    Route::post('/admin/tokens/save-all', [VideoController::class, 'saveAllTokens'])->name('admin.tokens.save-all');
 
     // Testing and manual import
     Route::get('/admin/videos/test-connection', [VideoController::class, 'testConnection'])->name('admin.videos.test-connection');

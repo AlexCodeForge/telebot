@@ -33,8 +33,46 @@ class VideoController extends Controller
      */
     public function manage()
     {
-        $videos = Video::orderBy('created_at', 'desc')->get();
-        return view('admin.videos.manage', compact('videos'));
+        try {
+            $videos = Video::orderBy('created_at', 'desc')->get();
+
+            // Get webhook status
+            $isWebhookActive = false;
+            $webhookUrl = '';
+
+            // Get tokens from settings
+            $telegramToken = Setting::get('telegram_bot_token');
+            $stripeKey = Setting::get('stripe_key');
+            $stripeSecret = Setting::get('stripe_secret');
+            $stripeWebhookSecret = Setting::get('stripe_webhook_secret');
+
+            try {
+                $botToken = $telegramToken ?: config('telegram.bots.mybot.token');
+                if ($botToken && $botToken !== 'YOUR-BOT-TOKEN') {
+                    $response = Http::timeout(10)->get("https://api.telegram.org/bot{$botToken}/getWebhookInfo");
+                    if ($response->successful()) {
+                        $webhookInfo = $response->json();
+                        $isWebhookActive = !empty($webhookInfo['result']['url']);
+                        $webhookUrl = $webhookInfo['result']['url'] ?? '';
+                    }
+                }
+            } catch (Exception $e) {
+                Log::warning('Failed to get webhook status: ' . $e->getMessage());
+            }
+
+            return view('admin.videos.manage', compact(
+                'videos',
+                'isWebhookActive',
+                'webhookUrl',
+                'telegramToken',
+                'stripeKey',
+                'stripeSecret',
+                'stripeWebhookSecret'
+            ));
+        } catch (Exception $e) {
+            Log::error('Error loading admin videos: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to load videos: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -84,8 +122,8 @@ class VideoController extends Controller
         }
 
         try {
-            $botToken = config('telegram.bot_token');
-            if (!$botToken) {
+            $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
+            if (!$botToken || $botToken === 'YOUR-BOT-TOKEN') {
                 return response()->json([
                     'success' => false,
                     'error' => 'Bot token not configured'
@@ -201,14 +239,104 @@ class VideoController extends Controller
     }
 
     /**
+     * Save all API tokens at once
+     */
+    public function saveAllTokens(Request $request)
+    {
+        try {
+            $tokens = $request->all();
+            $savedTokens = [];
+            $errors = [];
+
+            // Validate and save Telegram token
+            if (isset($tokens['telegram_token'])) {
+                $token = trim($tokens['telegram_token']);
+                if (!empty($token)) {
+                    // Basic validation - Telegram bot tokens should follow pattern: digits:letters/digits
+                    if (!preg_match('/^\d+:[A-Za-z0-9_-]+$/', $token)) {
+                        $errors[] = 'Invalid Telegram token format. Should be: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz';
+                    } else {
+                        Setting::set('telegram_bot_token', $token);
+                        $savedTokens[] = 'Telegram Bot Token';
+                    }
+                }
+            }
+
+            // Validate and save Stripe publishable key
+            if (isset($tokens['stripe_key'])) {
+                $key = trim($tokens['stripe_key']);
+                if (!empty($key)) {
+                    if (!str_starts_with($key, 'pk_')) {
+                        $errors[] = 'Invalid Stripe publishable key format. Should start with pk_';
+                    } else {
+                        Setting::set('stripe_key', $key);
+                        $savedTokens[] = 'Stripe Publishable Key';
+                    }
+                }
+            }
+
+            // Validate and save Stripe secret key
+            if (isset($tokens['stripe_secret'])) {
+                $secret = trim($tokens['stripe_secret']);
+                if (!empty($secret)) {
+                    if (!str_starts_with($secret, 'sk_')) {
+                        $errors[] = 'Invalid Stripe secret key format. Should start with sk_';
+                    } else {
+                        Setting::set('stripe_secret', $secret);
+                        $savedTokens[] = 'Stripe Secret Key';
+                    }
+                }
+            }
+
+            // Validate and save Stripe webhook secret
+            if (isset($tokens['stripe_webhook_secret'])) {
+                $webhookSecret = trim($tokens['stripe_webhook_secret']);
+                if (!empty($webhookSecret)) {
+                    if (!str_starts_with($webhookSecret, 'whsec_')) {
+                        $errors[] = 'Invalid Stripe webhook secret format. Should start with whsec_';
+                    } else {
+                        Setting::set('stripe_webhook_secret', $webhookSecret);
+                        $savedTokens[] = 'Stripe Webhook Secret';
+                    }
+                }
+            }
+
+            if (!empty($errors)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => implode('. ', $errors)
+                ]);
+            }
+
+            if (empty($savedTokens)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No valid tokens provided to save'
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully saved: ' . implode(', ', $savedTokens)
+            ]);
+        } catch (Exception $e) {
+            Log::error('Failed to save tokens', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to save tokens: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Admin: Deactivate webhook to allow getUpdates.
      */
     // Deactivate webhook
     public function deactivateWebhook()
     {
         try {
-            $botToken = config('telegram.bot_token');
-            if (!$botToken) {
+            $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
+            if (!$botToken || $botToken === 'YOUR-BOT-TOKEN') {
                 return response()->json([
                     'success' => false,
                     'error' => 'Bot token not configured'
@@ -249,8 +377,8 @@ class VideoController extends Controller
     public function reactivateWebhook()
     {
         try {
-            $botToken = config('telegram.bot_token');
-            if (!$botToken) {
+            $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
+            if (!$botToken || $botToken === 'YOUR-BOT-TOKEN') {
                 return response()->json([
                     'success' => false,
                     'error' => 'Bot token not configured'
@@ -300,7 +428,7 @@ class VideoController extends Controller
     public function webhookStatus()
     {
         try {
-            $botToken = config('telegram.bot_token');
+            $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
             $url = "https://api.telegram.org/bot{$botToken}/getWebhookInfo";
 
             $response = Http::get($url);
@@ -330,7 +458,7 @@ class VideoController extends Controller
     public function testConnection()
     {
         try {
-            $botToken = config('telegram.bot_token');
+            $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
             $syncUserTelegramId = Setting::get('sync_user_telegram_id');
 
             if (!$syncUserTelegramId) {
@@ -629,7 +757,7 @@ class VideoController extends Controller
     private function sendTelegramMessage($chatId, $text)
     {
         try {
-            $botToken = config('telegram.bot_token');
+            $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
             $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
 
             $data = [
