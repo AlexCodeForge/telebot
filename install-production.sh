@@ -201,22 +201,42 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-# Create application directory
-log_info "Setting up application directory..."
+# Clean up any previous installation
+log_info "Cleaning up previous installation..."
+if [[ -d "$INSTALL_PATH" ]]; then
+    log_warning "Previous installation found, removing completely..."
+
+    # Stop any running services
+    systemctl stop telebot-queue 2>/dev/null || true
+    systemctl stop php8.2-fpm 2>/dev/null || true
+    systemctl stop nginx 2>/dev/null || true
+
+    # Remove systemd service
+    systemctl disable telebot-queue 2>/dev/null || true
+    rm -f /etc/systemd/system/telebot-queue.service
+    systemctl daemon-reload
+
+        # Remove nginx config
+    rm -f /etc/nginx/sites-enabled/telebot
+    rm -f /etc/nginx/sites-available/telebot
+
+    # Remove SSL certificates if they exist
+    certbot delete --cert-name "$DOMAIN" --non-interactive 2>/dev/null || true
+
+    # Remove installation directory
+    rm -rf "$INSTALL_PATH"
+
+    log_success "Previous installation cleaned up"
+fi
+
+# Create fresh application directory
+log_info "Setting up fresh application directory..."
 mkdir -p "$INSTALL_PATH"
 cd "$INSTALL_PATH"
 
-# Remove existing installation if present
-if [[ -d ".git" ]]; then
-    log_warning "Existing installation found, backing up..."
-    mv .env .env.backup.$(date +%s) 2>/dev/null || true
-    git reset --hard HEAD
-    git pull origin master
-else
-    log_info "Cloning repository..."
-    rm -rf ./*
-    git clone https://github.com/AlexCodeForge/telebot.git .
-fi
+# Clone repository
+log_info "Cloning repository..."
+git clone https://github.com/AlexCodeForge/telebot.git .
 
 # Create environment file
 log_info "Creating environment configuration..."
@@ -252,9 +272,9 @@ MAIL_MAILER=log
 VITE_APP_NAME=TeleBot
 EOF
 
-# Install PHP dependencies
+# Install PHP dependencies (with dev dependencies for seeding)
 log_info "Installing PHP dependencies..."
-composer install --no-dev --optimize-autoloader
+composer install --optimize-autoloader
 
 # Install and build frontend assets
 log_info "Installing and building frontend assets..."
@@ -299,6 +319,10 @@ fi
 
 php artisan migrate:fresh --force
 php artisan db:seed --force
+
+# Reinstall production dependencies (remove dev packages)
+log_info "Optimizing for production..."
+composer install --no-dev --optimize-autoloader
 
 # Cache configuration
 log_info "Optimizing application..."
@@ -391,10 +415,13 @@ EOF
 
 # Restart services
 log_info "Starting services..."
-systemctl restart php8.2-fpm
-systemctl restart nginx
 systemctl enable php8.2-fpm
 systemctl enable nginx
+systemctl restart php8.2-fpm
+systemctl restart nginx
+
+# Wait a moment for services to start
+sleep 3
 
 # Get SSL certificate
 log_info "Obtaining SSL certificate..."
@@ -407,7 +434,11 @@ fi
 # Set up Telegram webhook
 log_info "Setting up Telegram webhook..."
 WEBHOOK_URL="https://$DOMAIN/telegram/webhook"
-curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/setWebhook?url=$WEBHOOK_URL" > /dev/null || log_warning "Failed to set Telegram webhook"
+if curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/setWebhook?url=$WEBHOOK_URL" | grep -q '"ok":true'; then
+    log_success "Telegram webhook configured successfully"
+else
+    log_warning "Failed to set Telegram webhook - check your bot token"
+fi
 
 # Create systemd service for queue worker
 log_info "Creating queue worker service..."
@@ -446,7 +477,9 @@ cd /opt/telebot
 cp .env .env.backup.$(date +%s)
 
 # Pull latest code
+git stash
 git pull origin master
+git stash pop 2>/dev/null || true
 
 # Update dependencies
 composer install --no-dev --optimize-autoloader
@@ -456,12 +489,15 @@ npm ci && npm run build
 php artisan migrate --force
 
 # Clear and cache
+php artisan config:clear
+php artisan cache:clear
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
 # Restart services
 systemctl restart php8.2-fpm
+systemctl restart nginx
 systemctl restart telebot-queue
 
 echo "✅ Update complete!"
