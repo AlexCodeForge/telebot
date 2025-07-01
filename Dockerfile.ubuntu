@@ -1,4 +1,4 @@
-# Ubuntu-based fallback Dockerfile
+# Simple Ubuntu-based fallback
 FROM php:8.2-fpm
 
 # Set working directory
@@ -14,23 +14,12 @@ RUN apt-get update && apt-get install -y \
     npm \
     git \
     curl \
-    zip \
-    unzip \
     libpng-dev \
     libzip-dev \
-    libonig-dev \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install \
-        pdo_sqlite \
-        zip \
-        mbstring \
-        gd \
-        bcmath \
-        pcntl \
-        fileinfo \
-        tokenizer \
+    && docker-php-ext-install pdo_sqlite zip gd bcmath \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -40,14 +29,14 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Copy application files
 COPY . /var/www/html/
 
-# Fix git ownership issues and set proper permissions
+# Fix git ownership and set permissions
 RUN git config --global --add safe.directory /var/www/html && \
     chown -R www-data:www-data /var/www/html && \
     chmod -R 755 /var/www/html/storage && \
     chmod -R 755 /var/www/html/bootstrap/cache
 
-# Install PHP dependencies with platform requirements check disabled for Docker
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-bcmath --ignore-platform-req=ext-fileinfo --ignore-platform-req=ext-tokenizer
+# Install PHP dependencies - ignore platform requirements
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
 # Install Node.js dependencies and build assets
 RUN npm install && npm run build
@@ -61,8 +50,7 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Create necessary directories
-RUN mkdir -p /var/log/supervisor \
-    && mkdir -p /run/nginx
+RUN mkdir -p /var/log/supervisor && mkdir -p /run/nginx
 
 # Expose port 80
 EXPOSE 80

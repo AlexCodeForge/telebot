@@ -204,8 +204,6 @@ EOF
 # Update docker-compose.yml with the provided credentials
 echo "🔧 Updating Docker configuration..."
 cat > docker-compose.yml << EOF
-version: '3.8'
-
 services:
   # Laravel Telebot Application
   telebot:

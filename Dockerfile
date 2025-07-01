@@ -1,49 +1,29 @@
-# Use official PHP 8.2 FPM image with Alpine 3.18 (more stable)
-FROM php:8.2-fpm-alpine3.18
+# Use official PHP 8.2 FPM with Alpine (simplified approach)
+FROM php:8.2-fpm-alpine
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Update package repositories and install system dependencies in stages
-RUN apk update && apk upgrade && \
-    # Install basic packages first
-    apk add --no-cache \
-        nginx \
-        supervisor \
-        git \
-        curl \
-        bash && \
-    # Install development packages
-    apk add --no-cache \
-        sqlite \
-        sqlite-dev \
-        zlib-dev \
-        libzip-dev \
-        libpng-dev \
-        freetype-dev \
-        libjpeg-turbo-dev \
-        oniguruma-dev \
-        bzip2-dev \
-        xz-dev \
-        pkgconfig && \
-    # Install Node.js and npm
-    apk add --no-cache \
-        nodejs \
-        npm \
-        zip \
-        unzip
+# Install essential system packages
+RUN apk update && apk add --no-cache \
+    nginx \
+    supervisor \
+    nodejs \
+    npm \
+    git \
+    curl \
+    bash \
+    sqlite \
+    sqlite-dev \
+    libpng-dev \
+    libzip-dev \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    zlib-dev
 
-# Configure and install ALL PHP extensions Laravel needs
+# Install only the essential PHP extensions that Laravel absolutely needs
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install \
-        pdo_sqlite \
-        zip \
-        mbstring \
-        gd \
-        bcmath \
-        pcntl \
-        fileinfo \
-        tokenizer
+    docker-php-ext-install pdo_sqlite zip gd bcmath
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -51,14 +31,14 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Copy application files
 COPY . /var/www/html/
 
-# Fix git ownership issues and set proper permissions
+# Fix git ownership and set permissions
 RUN git config --global --add safe.directory /var/www/html && \
     chown -R www-data:www-data /var/www/html && \
     chmod -R 755 /var/www/html/storage && \
     chmod -R 755 /var/www/html/bootstrap/cache
 
-# Install PHP dependencies with platform requirements check disabled for Docker
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-bcmath --ignore-platform-req=ext-fileinfo --ignore-platform-req=ext-tokenizer
+# Install PHP dependencies - ignore platform requirements
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
 # Install Node.js dependencies and build assets
 RUN npm install && npm run build
@@ -72,8 +52,7 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Create necessary directories
-RUN mkdir -p /var/log/supervisor \
-    && mkdir -p /run/nginx
+RUN mkdir -p /var/log/supervisor && mkdir -p /run/nginx
 
 # Expose port 80
 EXPOSE 80
