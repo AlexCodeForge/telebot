@@ -35,9 +35,11 @@ fi
 chmod 775 /var/www/html/database
 
 # Generate Laravel app key if not set
-if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "base64:" ]; then
+if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "base64:" ] || [ "$APP_KEY" = "" ]; then
     echo "🔑 Generating Laravel application key..."
     php artisan key:generate --force
+else
+    echo "🔑 Using existing Laravel application key: ${APP_KEY:0:20}..."
 fi
 
 # Set proper permissions again (critical for Laravel)

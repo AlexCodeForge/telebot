@@ -255,12 +255,17 @@ chown -R 1000:1000 database storage
 chmod 775 database
 chmod 664 database/database.sqlite
 
+# Generate Laravel application key on host
+echo "🔑 Generating Laravel application key..."
+APP_KEY="base64:$(openssl rand -base64 32)"
+echo "✅ Generated APP_KEY: ${APP_KEY:0:20}..."
+
 # Create .env file with the provided credentials
 echo "📝 Creating environment configuration..."
 cat > .env << EOF
 APP_NAME="TeleBot Video Store"
 APP_ENV=local
-APP_KEY=
+APP_KEY=$APP_KEY
 APP_DEBUG=true
 APP_TIMEZONE=UTC
 APP_URL=http://$SERVER_IP:8000
@@ -385,6 +390,36 @@ check_service() {
     return 1
 }
 
+# Advanced debugging function
+debug_app_failure() {
+    echo "🔍 Performing advanced diagnostics..."
+
+    echo "📋 Container status:"
+    $DOCKER_COMPOSE ps
+
+    echo "🔑 Checking APP_KEY:"
+    $DOCKER_COMPOSE exec app env | grep APP_KEY || echo "❌ Could not check APP_KEY"
+
+    echo "📁 Database file status:"
+    $DOCKER_COMPOSE exec app ls -la /var/www/html/database/ || echo "❌ Could not check database"
+
+    echo "🐛 Laravel error logs:"
+    $DOCKER_COMPOSE exec app cat /var/www/html/storage/logs/laravel.log 2>/dev/null | tail -20 || echo "❌ No Laravel logs found"
+
+    echo "🐛 PHP error logs:"
+    $DOCKER_COMPOSE exec app cat /var/log/nginx/error.log 2>/dev/null | tail -10 || echo "❌ No PHP error logs found"
+
+    echo "🧪 Direct PHP test:"
+    $DOCKER_COMPOSE exec app php -r "
+    echo 'PHP Version: ' . PHP_VERSION . \"\n\";
+    if (getenv('APP_KEY')) {
+        echo 'APP_KEY: Set (' . substr(getenv('APP_KEY'), 0, 20) . '...)\n';
+    } else {
+        echo 'APP_KEY: NOT SET!\n';
+    }
+    " 2>/dev/null || echo "❌ Could not run PHP test"
+}
+
 # Check if services are running
 echo "🏥 Running health checks..."
 APP_RUNNING=false
@@ -396,8 +431,8 @@ if docker ps | grep -q "telebot-app"; then
     if check_service "TeleBot App" 8000; then
         APP_RUNNING=true
     else
-        echo "🔍 TeleBot app not responding, checking logs..."
-        $DOCKER_COMPOSE logs app | tail -30
+        echo "🔍 TeleBot app not responding, running diagnostics..."
+        debug_app_failure
     fi
 else
     echo "❌ TeleBot app container not found"
