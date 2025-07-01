@@ -80,9 +80,20 @@ install_docker() {
     echo "✅ Docker installed successfully"
 }
 
+# Function to detect Docker Compose command
+get_docker_compose_cmd() {
+    if command -v docker-compose &> /dev/null; then
+        echo "docker-compose"
+    elif docker compose version &> /dev/null 2>&1; then
+        echo "docker compose"
+    else
+        echo ""
+    fi
+}
+
 # Function to install Docker Compose if not available
 install_docker_compose() {
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null 2>&1; then
+    if [ -z "$(get_docker_compose_cmd)" ]; then
         echo "🔧 Installing Docker Compose..."
         sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
         sudo chmod +x /usr/local/bin/docker-compose
@@ -109,6 +120,14 @@ fi
 
 # Install Docker Compose if needed
 install_docker_compose
+
+# Get the Docker Compose command to use
+DOCKER_COMPOSE_CMD=$(get_docker_compose_cmd)
+if [ -z "$DOCKER_COMPOSE_CMD" ]; then
+    echo "❌ Error: Docker Compose is not available after installation"
+    exit 1
+fi
+echo "✅ Using Docker Compose command: $DOCKER_COMPOSE_CMD"
 
 # Check if we're in the telebot directory
 if [ ! -f "docker-compose.yml" ]; then
@@ -201,11 +220,11 @@ EOF
 
 # Stop any existing containers
 echo "🛑 Stopping any existing containers..."
-docker-compose down 2>/dev/null || true
+$DOCKER_COMPOSE_CMD down 2>/dev/null || true
 
 # Build and start containers
 echo "🚀 Building and starting containers..."
-docker-compose up --build -d
+$DOCKER_COMPOSE_CMD up --build -d
 
 # Wait for containers to be ready
 echo "⏳ Waiting for containers to start..."
@@ -213,7 +232,7 @@ sleep 30
 
 # Check container status
 echo "📊 Container Status:"
-docker-compose ps
+$DOCKER_COMPOSE_CMD ps
 
 echo ""
 echo "🎉 Deployment Complete!"
@@ -245,9 +264,9 @@ echo "   • Email: admin@admin.com"
 echo "   • Password: password"
 echo ""
 echo "🛠️  Useful Commands:"
-echo "   • View logs: docker-compose logs -f"
-echo "   • Restart: docker-compose restart"
-echo "   • Stop: docker-compose down"
+echo "   • View logs: $DOCKER_COMPOSE_CMD logs -f"
+echo "   • Restart: $DOCKER_COMPOSE_CMD restart"
+echo "   • Stop: $DOCKER_COMPOSE_CMD down"
 echo ""
 echo "🎯 Your TeleBot will be live at: https://$DOMAIN"
 echo ""
