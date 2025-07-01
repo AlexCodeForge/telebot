@@ -33,10 +33,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(
     Route::put('/videos/{video}', [VideoController::class, 'update'])->name('videos.update');
     Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
     Route::post('/videos/{video}/test', [VideoController::class, 'testVideo'])->name('videos.test');
+    Route::post('/videos/{video}/generate-thumbnail', [VideoController::class, 'generateThumbnail'])->name('videos.generate-thumbnail');
     Route::post('/videos/bulk-action', [VideoController::class, 'bulkAction'])->name('videos.bulk-action');
-    Route::post('/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('admin.videos.set-sync-user');
-    Route::post('/videos/set-sync-method', [VideoController::class, 'setSyncMethod'])->name('admin.videos.set-sync-method');
-    Route::post('/videos/sync', [VideoController::class, 'syncVideos'])->name('admin.videos.sync');
+    Route::post('/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('videos.set-sync-user');
+    Route::post('/videos/set-sync-method', [VideoController::class, 'setSyncMethod'])->name('videos.set-sync-method');
+    Route::post('/videos/sync', [VideoController::class, 'syncVideos'])->name('videos.sync');
+    Route::post('/videos/{video}/send-to-sync', [VideoController::class, 'sendToSyncUser'])->name('videos.send-to-sync');
 });
 
 // Telegram webhook

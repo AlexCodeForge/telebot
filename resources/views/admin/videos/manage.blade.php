@@ -48,125 +48,130 @@
             </div>
         </div>
 
-        {{-- Bulk Actions --}}
-        <form method="POST" action="{{ route('admin.videos.bulk-action') }}" id="bulkForm">
-            @csrf
-            <div class="row mb-3">
-                <div class="col-md-8">
-                    <div class="input-group">
-                        <select name="action" class="form-select" required>
-                            <option value="">Bulk Actions...</option>
-                            <option value="set_price">Set Price</option>
-                            <option value="make_free">Make Free</option>
-                            <option value="delete">Delete Selected</option>
-                        </select>
-                        <input type="number" name="bulk_price" step="0.01" min="0" placeholder="Price"
-                            class="form-control" style="display:none;" id="bulkPrice">
-                        <button type="submit" class="btn btn-primary">Apply</button>
-                    </div>
-                </div>
-                <div class="col-md-4 text-end">
-                    <span class="small text-muted">{{ $videos->count() }} of {{ $videos->total() }} videos</span>
-                </div>
-            </div>
-
-            {{-- Videos Table --}}
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
+        {{-- Videos Table --}}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Thumbnail</th>
+                        <th>Video Details</th>
+                        <th>Metadata</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($videos as $video)
                         <tr>
-                            <th><input type="checkbox" id="selectAll"></th>
-                            <th>Video</th>
-                            <th>Price</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($videos as $video)
-                            <tr>
-                                <td>
-                                    <input type="checkbox" name="video_ids[]" value="{{ $video->id }}"
-                                        class="video-checkbox">
-                                </td>
-                                <td>
-                                    <div>
-                                        <strong>{{ $video->title ?: 'Video #' . $video->id }}</strong>
-                                        @if ($video->description)
-                                            <br><small class="text-muted">{{ Str::limit($video->description, 60) }}</small>
-                                        @endif
-                                        <br><small class="text-muted">Added
-                                            {{ $video->created_at->diffForHumans() }}</small>
+                            <td style="width: 120px;">
+                                @if($video->getThumbnailUrl())
+                                    <img src="{{ $video->getThumbnailUrl() }}"
+                                         alt="Thumbnail"
+                                         class="img-thumbnail"
+                                         style="width: 100px; height: 56px; object-fit: cover;">
+                                @else
+                                    <div class="d-flex align-items-center justify-content-center bg-light"
+                                         style="width: 100px; height: 56px;">
+                                        <i class="fas fa-video text-muted"></i>
                                     </div>
-                                </td>
-                                <td>
-                                    <form method="POST" action="{{ route('admin.videos.update', $video) }}"
-                                        class="d-inline" style="max-width: 200px;">
-                                        @csrf
-                                        @method('PUT')
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text">$</span>
-                                            <input type="number" name="price" step="0.01" min="0"
-                                                value="{{ $video->price }}" class="form-control">
-                                            <button type="submit" class="btn btn-outline-primary btn-sm">Save</button>
-                                        </div>
-                                        <input type="hidden" name="title"
-                                            value="{{ $video->title ?: 'Video #' . $video->id }}">
-                                    </form>
-                                    {{-- Quick Price Buttons --}}
-                                    <div class="mt-1">
-                                        @foreach ([4.99, 9.99, 19.99] as $price)
-                                            <button onclick="setPrice({{ $video->id }}, {{ $price }})"
-                                                class="btn btn-outline-secondary btn-xs me-1"
-                                                style="font-size: 0.7rem; padding: 1px 4px;">${{ $price }}</button>
-                                        @endforeach
-                                    </div>
-                                </td>
-                                <td>
-                                    @if ($video->price > 0)
-                                        <span class="badge bg-success">Ready</span>
-                                    @else
-                                        <span class="badge bg-warning">Needs Price</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        @if ($video->telegram_file_id)
-                                            <form method="POST" action="{{ route('admin.videos.test', $video) }}"
-                                                class="d-inline">
+                                    @if($video->telegram_file_id)
+                                        <div class="mt-1">
+                                            <form method="POST" action="{{ route('admin.videos.generate-thumbnail', $video) }}" class="d-inline">
                                                 @csrf
-                                                <button type="submit" class="btn btn-outline-info btn-sm"
-                                                    title="Test Send">
-                                                    <i class="fas fa-paper-plane"></i>
+                                                <button type="submit" class="btn btn-outline-primary btn-xs" title="Generate Thumbnail">
+                                                    <i class="fas fa-image"></i>
                                                 </button>
                                             </form>
-                                        @endif
-                                        <form method="POST" action="{{ route('admin.videos.destroy', $video) }}"
-                                            class="d-inline" onsubmit="return confirm('Delete this video?')">
+                                        </div>
+                                    @endif
+                                @endif
+
+                                @if(!$video->getThumbnailUrl())
+                                    <span class="badge bg-warning text-dark" style="font-size: 0.6rem;">No Thumbnail</span>
+                                @endif
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ $video->title ?: 'Video #' . $video->id }}</strong>
+                                    @if ($video->description)
+                                        <br><small class="text-muted">{{ Str::limit($video->description, 60) }}</small>
+                                    @endif
+                                    <br><small class="text-muted">Added {{ $video->created_at->diffForHumans() }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                @if($video->duration)
+                                    <div><i class="fas fa-clock"></i> {{ gmdate("H:i:s", $video->duration) }}</div>
+                                @endif
+                                @if($video->file_size)
+                                    <div><i class="fas fa-hdd"></i> {{ number_format($video->file_size / 1024 / 1024, 1) }} MB</div>
+                                @endif
+                                @if($video->width && $video->height)
+                                    <div><i class="fas fa-expand-arrows-alt"></i> {{ $video->width }}x{{ $video->height }}</div>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="me-2">${{ number_format($video->price, 2) }}</span>
+                                    <button onclick="editVideo({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }})"
+                                            class="btn btn-outline-primary btn-sm" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                                {{-- Quick Price Buttons --}}
+                                <div class="mt-1">
+                                    @foreach ([4.99, 9.99, 19.99, 0] as $price)
+                                        <button onclick="quickPrice({{ $video->id }}, {{ $price }})"
+                                                class="btn btn-outline-secondary btn-xs me-1"
+                                                style="font-size: 0.65rem; padding: 1px 3px;">
+                                            @if($price == 0) Free @else ${{ $price }} @endif
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </td>
+                            <td>
+                                @if ($video->price > 0)
+                                    <span class="badge bg-success">Ready</span>
+                                @else
+                                    <span class="badge bg-warning">Needs Price</span>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="btn-group-vertical btn-group-sm">
+                                    @if ($video->telegram_file_id)
+                                        <form method="POST" action="{{ route('admin.videos.test', $video) }}" class="d-inline mb-1">
                                             @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
-                                                <i class="fas fa-trash"></i>
+                                            <button type="submit" class="btn btn-outline-info btn-sm" title="Test Send">
+                                                <i class="fas fa-paper-plane"></i>
                                             </button>
                                         </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="text-center py-4">
-                                    <div class="text-muted">
-                                        <i class="fas fa-video fa-3x mb-3"></i>
-                                        <h5>No videos found</h5>
-                                        <p>Videos sent to your Telegram bot will appear here automatically.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </form>
+                                    @endif
+                                    <form method="POST" action="{{ route('admin.videos.destroy', $video) }}"
+                                          class="d-inline" onsubmit="return confirm('Delete this video?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-video fa-3x mb-3"></i>
+                                    <h5>No videos found</h5>
+                                    <p>Videos sent to your Telegram bot will appear here automatically.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
         {{-- Pagination --}}
         @if ($videos->hasPages())
@@ -175,125 +180,163 @@
             </div>
         @endif
 
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <div class="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                    <div>
-                        <div class="font-medium text-green-900">Current Sync Target</div>
-                        <div class="text-green-700">
-                            {{ $syncDisplayInfo['name'] }}
+        {{-- Sync Configuration --}}
+        @if(isset($syncDisplayInfo))
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sync-alt me-2"></i>Sync Configuration
+                    </h5>
+                    <span class="badge bg-success">Active</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Current Sync Target</h6>
+                            <p class="mb-1"><strong>{{ $syncDisplayInfo['name'] }}</strong></p>
+                            <p class="text-muted mb-0">Telegram ID: {{ $syncDisplayInfo['telegram_id'] }}</p>
                         </div>
-                        <div class="text-sm text-green-600">
-                            Telegram ID: {{ $syncDisplayInfo['telegram_id'] }}
+                        <div class="col-md-6">
+                            <h6>Sync Method</h6>
+                            <p class="mb-1">
+                                @if($syncMethod === 'webhook')
+                                    <span class="badge bg-info">Webhook-based (automatic capture)</span>
+                                @else
+                                    <span class="badge bg-primary">getUpdates (polling, default)</span>
+                                @endif
+                            </p>
                         </div>
                     </div>
-                </div>
-                <div class="flex space-x-2">
-                    <button type="button" onclick="openSyncUserModal()"
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center">
-                        <i class="fas fa-cog mr-2"></i>
-                        Set Sync User
-                    </button>
-                    <button type="button" onclick="openSyncMethodModal()"
-                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm flex items-center">
-                        <i class="fas fa-exchange-alt mr-2"></i>
-                        Sync Method
-                    </button>
-                    <form method="POST" action="{{ route('admin.videos.sync') }}" style="display: inline;">
-                        @csrf
-                        <button type="submit"
-                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm flex items-center">
-                            <i class="fas fa-sync mr-2"></i>
-                            Sync Videos
+                    <div class="mt-3">
+                        <button type="button" onclick="openSyncUserModal()" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-user-cog me-1"></i> Set Sync User
                         </button>
-                    </form>
+                        <button type="button" onclick="openSyncMethodModal()" class="btn btn-outline-secondary me-2">
+                            <i class="fas fa-exchange-alt me-1"></i> Sync Method
+                        </button>
+                        <form method="POST" action="{{ route('admin.videos.sync') }}" class="d-inline">
+                            @csrf
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-sync me-1"></i> Sync Videos
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
+        @endif
+    </div>
 
-            <!-- Sync Method Indicator -->
-            <div class="mt-3 pt-3 border-t border-green-200">
-                <div class="text-sm text-green-600">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Current sync method:
-                    <span class="font-medium">
-                        @if ($syncMethod === 'webhook')
-                            Webhook-based (automatic capture)
-                        @else
-                            getUpdates (polling, default)
-                        @endif
-                    </span>
+    {{-- Edit Video Modal --}}
+    <div class="modal fade" id="editVideoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Video</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editVideoForm">
+                        <input type="hidden" id="editVideoId">
+                        <div class="mb-3">
+                            <label for="editTitle" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="editTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="editDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editPrice" class="form-label">Price ($)</label>
+                            <input type="number" class="form-control" id="editPrice" step="0.01" min="0" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveVideo()">Save Changes</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Sync Method Modal -->
-    <div id="syncMethodModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-                <div class="px-6 py-4 border-b">
-                    <h3 class="text-lg font-medium text-gray-900">Configure Sync Method</h3>
-                    <button type="button" onclick="closeSyncMethodModal()"
-                        class="float-right -mt-6 text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times"></i>
-                    </button>
+    {{-- Sync User Modal --}}
+    <div class="modal fade" id="syncUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Set Sync User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-
-                <form method="POST" action="{{ route('admin.videos.set-sync-method') }}">
+                <form method="POST" action="{{ route('admin.videos.set-sync-user') }}">
                     @csrf
-                    <div class="px-6 py-4">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="flex items-start">
-                                    <input type="radio" name="sync_method" value="getupdates"
-                                        {{ $syncMethod === 'getupdates' ? 'checked' : '' }} class="mt-1 mr-3">
-                                    <div>
-                                        <div class="font-medium text-gray-900">getUpdates (Polling) - Default</div>
-                                        <div class="text-sm text-gray-600">
-                                            • Works in all environments (local, hosting with/without SSL)<br>
-                                            • Temporarily removes webhook during sync<br>
-                                            • Only syncs recent messages (last ~100 updates)<br>
-                                            • Safe and reliable for most use cases
-                                        </div>
-                                    </div>
-                                </label>
-                            </div>
-
-                            <div>
-                                <label class="flex items-start">
-                                    <input type="radio" name="sync_method" value="webhook"
-                                        {{ $syncMethod === 'webhook' ? 'checked' : '' }} class="mt-1 mr-3">
-                                    <div>
-                                        <div class="font-medium text-gray-900">Webhook-based (Automatic)</div>
-                                        <div class="text-sm text-gray-600">
-                                            • Videos automatically captured when sent to bot<br>
-                                            • No conflicts with existing webhooks<br>
-                                            • Requires videos to be sent directly to the bot<br>
-                                            • Better for production with active webhook setup
-                                        </div>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 p-3 bg-blue-50 rounded-md">
-                            <div class="text-sm text-blue-700">
-                                <i class="fas fa-info-circle mr-1"></i>
-                                <strong>Recommendation:</strong> Use getUpdates for development/testing and webhook for
-                                production environments.
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="telegramId" class="form-label">Telegram User ID</label>
+                            <input type="number" class="form-control" name="telegram_id" id="telegramId" required
+                                   placeholder="Enter the Telegram User ID">
+                            <div class="form-text">
+                                To find a Telegram ID: Forward a message from the user to @userinfobot
                             </div>
                         </div>
                     </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Set Sync User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-                    <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
-                        <button type="button" onclick="closeSyncMethodModal()"
-                            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
-                            Cancel
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
-                            Save Method
-                        </button>
+    {{-- Sync Method Modal --}}
+    <div class="modal fade" id="syncMethodModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Configure Sync Method</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ route('admin.videos.set-sync-method') }}">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sync_method" value="getupdates"
+                                       {{ $syncMethod === 'getupdates' ? 'checked' : '' }} id="methodGetUpdates">
+                                <label class="form-check-label" for="methodGetUpdates">
+                                    <strong>getUpdates (Polling) - Default</strong><br>
+                                    <small class="text-muted">
+                                        • Works in all environments (local, hosting with/without SSL)<br>
+                                        • Temporarily removes webhook during sync<br>
+                                        • Only syncs recent messages (last ~100 updates)<br>
+                                        • Safe and reliable for most use cases
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sync_method" value="webhook"
+                                       {{ $syncMethod === 'webhook' ? 'checked' : '' }} id="methodWebhook">
+                                <label class="form-check-label" for="methodWebhook">
+                                    <strong>Webhook-based (Automatic)</strong><br>
+                                    <small class="text-muted">
+                                        • Videos automatically captured when sent to bot<br>
+                                        • No conflicts with existing webhooks<br>
+                                        • Requires videos to be sent directly to the bot<br>
+                                        • Better for production with active webhook setup
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Recommendation:</strong> Use getUpdates for development/testing and webhook for production environments.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Method</button>
                     </div>
                 </form>
             </div>
@@ -301,40 +344,84 @@
     </div>
 
     <script>
-        // Select all functionality
-        document.getElementById('selectAll').addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('.video-checkbox');
-            checkboxes.forEach(checkbox => checkbox.checked = this.checked);
-        });
+        // Modal functions
+        function editVideo(id, title, description, price) {
+            document.getElementById('editVideoId').value = id;
+            document.getElementById('editTitle').value = title;
+            document.getElementById('editDescription').value = description;
+            document.getElementById('editPrice').value = price;
 
-        // Show price input when set_price is selected
-        document.querySelector('select[name="action"]').addEventListener('change', function() {
-            const priceInput = document.getElementById('bulkPrice');
-            if (this.value === 'set_price') {
-                priceInput.style.display = 'block';
-                priceInput.required = true;
-            } else {
-                priceInput.style.display = 'none';
-                priceInput.required = false;
-            }
-        });
-
-        // Quick price setting
-        function setPrice(videoId, price) {
-            const form = document.querySelector(`form[action*="videos/${videoId}"] input[name="price"]`);
-            if (form) {
-                form.value = price;
-                form.closest('form').submit();
-            }
+            const modal = new bootstrap.Modal(document.getElementById('editVideoModal'));
+            modal.show();
         }
 
-        // Sync Method Modal Functions
+        function saveVideo() {
+            const id = document.getElementById('editVideoId').value;
+            const title = document.getElementById('editTitle').value;
+            const description = document.getElementById('editDescription').value;
+            const price = document.getElementById('editPrice').value;
+
+            fetch(`/admin/videos/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    title: title,
+                    description: description,
+                    price: parseFloat(price)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating video');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating video');
+            });
+        }
+
+        function quickPrice(videoId, price) {
+            fetch(`/admin/videos/${videoId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    title: document.querySelector(`tr:has(button[onclick*="${videoId}"]) strong`).textContent,
+                    description: '',
+                    price: price
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating price');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating price');
+            });
+        }
+
+        function openSyncUserModal() {
+            const modal = new bootstrap.Modal(document.getElementById('syncUserModal'));
+            modal.show();
+        }
+
         function openSyncMethodModal() {
-            document.getElementById('syncMethodModal').classList.remove('hidden');
-        }
-
-        function closeSyncMethodModal() {
-            document.getElementById('syncMethodModal').classList.add('hidden');
+            const modal = new bootstrap.Modal(document.getElementById('syncMethodModal'));
+            modal.show();
         }
     </script>
 @endsection
