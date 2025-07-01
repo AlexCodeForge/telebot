@@ -126,7 +126,8 @@ apt-get install -y \
     ca-certificates \
     lsb-release \
     gnupg \
-    ufw
+    ufw \
+    sqlite3
 
 # Install PHP 8.2
 if ! command_exists php || [[ $(php -v | head -n1 | cut -d' ' -f2 | cut -d'.' -f1-2) != "8.2" ]]; then
@@ -289,6 +290,13 @@ php artisan key:generate --force
 
 # Run database migrations and seed
 log_info "Setting up database..."
+
+# Ensure sqlite3 is available (fix for common issue)
+if ! command_exists sqlite3; then
+    log_warning "Installing missing sqlite3 command..."
+    apt-get install -y sqlite3
+fi
+
 php artisan migrate:fresh --force
 php artisan db:seed --force
 
