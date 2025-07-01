@@ -78,11 +78,7 @@
             @endforeach
         </div>
 
-        @if ($videos->hasPages())
-            <div class="d-flex justify-content-center mt-4">
-                {{ $videos->links() }}
-            </div>
-        @endif
+        {{-- Pagination removed since we're not using paginated results --}}
     @else
         <div class="text-center py-5">
             <i class="fas fa-video fa-4x text-muted mb-3"></i>

@@ -26,7 +26,7 @@
                     <i class="fas fa-wifi text-primary"></i> Webhook Management
                 </h5>
             </div>
-            <div class="card-body">
+                    <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-8">
                         <div class="d-flex align-items-center">
@@ -61,7 +61,7 @@
                     <i class="fas fa-tools text-info"></i> Manual Video Import
                 </h5>
             </div>
-            <div class="card-body">
+                    <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
                         <h6>Step 1: Test Connection & Get File IDs</h6>
@@ -130,41 +130,41 @@
             </div>
             <div class="card-body">
                 @if(count($videos) > 0)
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
                                     <th>Title</th>
                                     <th>Description</th>
-                                    <th>Price</th>
+                            <th>Price</th>
                                     <th>File ID</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                                 @foreach($videos as $video)
-                                    <tr>
-                                        <td>
+                            <tr>
+                                <td>
                                             <strong>{{ $video->title }}</strong><br>
                                             <small class="text-muted">Created: {{ $video->created_at->format('M j, Y H:i') }}</small>
-                                        </td>
-                                        <td>
+                                </td>
+                                <td>
                                             <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
                                                 {{ $video->description ?? 'No description' }}
-                                            </div>
-                                        </td>
-                                        <td>
+                                    </div>
+                                </td>
+                                <td>
                                             @if($video->price > 0)
                                                 <span class="badge bg-success">${{ number_format($video->price, 2) }}</span>
-                                            @else
+                                    @else
                                                 <span class="badge bg-warning">Free</span>
-                                            @endif
-                                        </td>
+                                    @endif
+                                </td>
                                         <td>
                                             <code style="font-size: 10px;">{{ $video->telegram_file_id }}</code>
                                         </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
+                                <td>
+                                    <div class="btn-group btn-group-sm">
                                                 <button type="button" class="btn btn-outline-primary"
                                                         onclick="editVideo({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }})">
                                                     <i class="fas fa-edit"></i>
@@ -175,15 +175,15 @@
                                                 </button>
                                                 <button type="button" class="btn btn-outline-danger"
                                                         onclick="deleteVideo({{ $video->id }})">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                    </div>
+                                </td>
+                            </tr>
                                 @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                    </tbody>
+                </table>
+            </div>
                 @else
                     <div class="text-center py-5">
                         <i class="fas fa-video fa-3x text-muted mb-3"></i>
@@ -224,14 +224,14 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
-                </form>
+        </form>
             </div>
         </div>
     </div>
 @endsection
 
 @push('scripts')
-<script>
+    <script>
 document.addEventListener('DOMContentLoaded', function() {
     checkWebhookStatus();
 });
@@ -498,6 +498,6 @@ function showAlert(type, message) {
     setTimeout(() => {
         alertDiv.remove();
     }, 5000);
-}
-</script>
+        }
+    </script>
 @endpush

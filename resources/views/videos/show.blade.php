@@ -16,7 +16,7 @@
                         <!-- Video Info -->
                         <div class="text-center mb-4">
                             @if(!$video->thumbnail_url)
-                                <i class="fas fa-play-circle fa-4x text-primary mb-3"></i>
+                            <i class="fas fa-play-circle fa-4x text-primary mb-3"></i>
                             @endif
                             <h2>{{ $video->title }}</h2>
                             @if ($video->description)
