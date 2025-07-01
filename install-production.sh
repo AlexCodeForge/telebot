@@ -23,51 +23,29 @@ echo "🚀 TeleBot Production Installer"
 echo "======================================"
 
 # Parse command line arguments
-DOMAIN=""
-TELEGRAM_TOKEN=""
-STRIPE_PUBLIC=""
-STRIPE_SECRET=""
-INSTALL_PATH="/opt/telebot"
-
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --domain=*)
-            DOMAIN="${1#*=}"
-            shift
-            ;;
-        --telegram-token=*)
-            TELEGRAM_TOKEN="${1#*=}"
-            shift
-            ;;
-        --stripe-public=*)
-            STRIPE_PUBLIC="${1#*=}"
-            shift
-            ;;
-        --stripe-secret=*)
-            STRIPE_SECRET="${1#*=}"
-            shift
-            ;;
-        --install-path=*)
-            INSTALL_PATH="${1#*=}"
-            shift
-            ;;
-        *)
-            log_error "Unknown option $1"
-            exit 1
-            ;;
-    esac
-done
+DOMAIN="$1"
+TELEGRAM_TOKEN="$2"
+STRIPE_PUBLIC="$3"
+STRIPE_SECRET="$4"
+INSTALL_PATH="${5:-/opt/telebot}"
 
 # Validate required parameters
 if [[ -z "$DOMAIN" || -z "$TELEGRAM_TOKEN" || -z "$STRIPE_PUBLIC" || -z "$STRIPE_SECRET" ]]; then
     log_error "Missing required parameters!"
     echo ""
-    echo "Usage: curl -fsSL https://raw.githubusercontent.com/AlexCodeForge/telebot/master/install-production.sh | bash -s -- \\"
-    echo "  --domain=your-domain.com \\"
-    echo "  --telegram-token=your-bot-token \\"
-    echo "  --stripe-public=pk_xxx \\"
-    echo "  --stripe-secret=sk_xxx \\"
-    echo "  [--install-path=/custom/path]"
+    echo "Usage: curl -fsSL https://raw.githubusercontent.com/AlexCodeForge/telebot/master/install-production.sh | sudo bash -s -- \\"
+    echo "  <domain> \\"
+    echo "  <telegram-token> \\"
+    echo "  <stripe-public-key> \\"
+    echo "  <stripe-secret-key> \\"
+    echo "  [install-path]"
+    echo ""
+    echo "Example:"
+    echo "  curl -fsSL https://raw.githubusercontent.com/AlexCodeForge/telebot/master/install-production.sh | sudo bash -s -- \\"
+    echo "    yourdomain.com \\"
+    echo "    \"1234567890:ABCDefGhIjKlMnOpQrStUvWxYz\" \\"
+    echo "    \"pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxx\" \\"
+    echo "    \"sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxx\""
     echo ""
     exit 1
 fi
