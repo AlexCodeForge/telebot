@@ -7,6 +7,7 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Exception;
 
 class VideoController extends Controller
@@ -80,13 +81,94 @@ class VideoController extends Controller
      */
     public function update(Request $request, Video $video)
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
+        // Log incoming request for debugging
+        Log::info('Video update request', [
+            'video_id' => $video->id,
+            'has_file' => $request->hasFile('thumbnail'),
+            'file_valid' => $request->hasFile('thumbnail') ? $request->file('thumbnail')->isValid() : null,
+            'request_data' => $request->except(['thumbnail'])
         ]);
 
-        $video->update($request->only(['title', 'description', 'price']));
+        try {
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'price' => 'required|numeric|min:0',
+                'thumbnail_url' => 'nullable|url',
+                'show_blurred_thumbnail' => 'boolean',
+                'blur_intensity' => 'integer|min:1|max:20',
+                'allow_preview' => 'boolean',
+                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation failed', ['errors' => $e->errors()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed: ' . implode(', ', array_map(function ($errors) {
+                    return implode(', ', $errors);
+                }, $e->errors()))
+            ]);
+        }
+
+        $updateData = $request->only(['title', 'description', 'price', 'thumbnail_url', 'show_blurred_thumbnail', 'blur_intensity', 'allow_preview']);
+
+        // Handle thumbnail upload
+        if ($request->hasFile('thumbnail') && $request->file('thumbnail')->isValid()) {
+            try {
+                $thumbnailFile = $request->file('thumbnail');
+                $extension = $thumbnailFile->getClientOriginalExtension();
+
+                if (empty($extension)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Could not determine file extension.'
+                    ]);
+                }
+
+                $thumbnailName = time() . '_' . $video->id . '.' . $extension;
+
+                Log::info('Processing thumbnail upload', [
+                    'original_name' => $thumbnailFile->getClientOriginalName(),
+                    'extension' => $extension,
+                    'size' => $thumbnailFile->getSize(),
+                    'mime_type' => $thumbnailFile->getMimeType(),
+                    'new_name' => $thumbnailName
+                ]);
+
+                // Delete old thumbnail if exists
+                if ($video->thumbnail_path) {
+                    $oldThumbnailPath = storage_path('app/public/thumbnails/' . $video->thumbnail_path);
+                    if (file_exists($oldThumbnailPath)) {
+                        unlink($oldThumbnailPath);
+                        Log::info('Old thumbnail deleted', ['path' => $oldThumbnailPath]);
+                    }
+                }
+
+                // Store new thumbnail using move method
+                $movedFile = $thumbnailFile->move(storage_path('app/public/thumbnails'), $thumbnailName);
+
+                if ($movedFile) {
+                    $updateData['thumbnail_path'] = $thumbnailName;
+                    // Clear thumbnail_url if uploading a file
+                    $updateData['thumbnail_url'] = null;
+                    Log::info('Thumbnail uploaded successfully', ['stored_as' => $thumbnailName, 'path' => $movedFile->getPathname()]);
+                } else {
+                    Log::error('Failed to store thumbnail file');
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to upload thumbnail file.'
+                    ]);
+                }
+            } catch (Exception $e) {
+                Log::error('Thumbnail upload error', ['error' => $e->getMessage()]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error uploading thumbnail: ' . $e->getMessage()
+                ]);
+            }
+        }
+
+        $video->update($updateData);
 
         return response()->json([
             'success' => true,
@@ -99,6 +181,15 @@ class VideoController extends Controller
      */
     public function destroy(Video $video)
     {
+        // Delete thumbnail if exists
+        if ($video->thumbnail_path) {
+            $thumbnailPath = storage_path('app/public/thumbnails/' . $video->thumbnail_path);
+            if (file_exists($thumbnailPath)) {
+                unlink($thumbnailPath);
+                Log::info('Thumbnail deleted with video', ['video_id' => $video->id, 'path' => $thumbnailPath]);
+            }
+        }
+
         $video->delete();
         return response()->json([
             'success' => true,

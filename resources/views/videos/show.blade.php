@@ -7,23 +7,42 @@
         <div class="row justify-content-center">
             <div class="col-md-8">
                 <div class="card shadow-lg">
-                    @if($video->thumbnail_url)
-                        <img src="{{ $video->thumbnail_url }}" class="card-img-top" alt="Video thumbnail"
-                             style="height: 300px; object-fit: cover;">
+                    @if ($video->hasThumbnail())
+                        <div class="position-relative" style="height: 300px;">
+                            <img src="{{ $video->getThumbnailUrl() }}" class="card-img-top" alt="Video thumbnail"
+                                style="height: 300px; object-fit: cover; {{ $video->shouldShowBlurred() ? $video->getBlurredThumbnailStyle() : '' }}"
+                                @if ($video->allow_preview) onclick="toggleThumbnailBlur(this, {{ $video->blur_intensity }})"
+                                    style="cursor: pointer;"
+                                    title="Click to preview" @endif>
+                            @if ($video->shouldShowBlurred())
+                                <div class="position-absolute top-50 start-50 translate-middle">
+                                    <div class="text-center text-white bg-dark bg-opacity-75 px-4 py-3 rounded">
+                                        <i class="fas fa-lock fa-3x mb-3"></i>
+                                        <div class="h6">Thumbnail Preview</div>
+                                        <div class="small">
+                                            @if ($video->allow_preview)
+                                                Click to preview •
+                                            @endif
+                                            Purchase to see full video
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
                     @endif
 
                     <div class="card-body p-5">
                         <!-- Video Info -->
                         <div class="text-center mb-4">
-                            @if(!$video->thumbnail_url)
-                            <i class="fas fa-play-circle fa-4x text-primary mb-3"></i>
+                            @if (!$video->hasThumbnail())
+                                <i class="fas fa-play-circle fa-4x text-primary mb-3"></i>
                             @endif
                             <h2>{{ $video->title }}</h2>
                             @if ($video->description)
                                 <p class="text-muted lead">{{ $video->description }}</p>
                             @endif
 
-                            @if($video->duration)
+                            @if ($video->duration)
                                 <div class="mb-3">
                                     <span class="badge bg-info fs-6">
                                         <i class="fas fa-clock"></i> Duration: {{ gmdate('i:s', $video->duration) }}
@@ -93,4 +112,33 @@
             </div>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+    <script>
+        let previewActive = false;
+
+        function toggleThumbnailBlur(img, blurIntensity) {
+            if (previewActive) {
+                // Return to blurred state
+                img.style.filter = `blur(${blurIntensity}px)`;
+                previewActive = false;
+                img.title = "Click to preview";
+            } else {
+                // Show unblurred preview
+                img.style.filter = 'none';
+                previewActive = true;
+                img.title = "Click to hide preview";
+
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    if (previewActive) {
+                        img.style.filter = `blur(${blurIntensity}px)`;
+                        previewActive = false;
+                        img.title = "Click to preview";
+                    }
+                }, 3000);
+            }
+        }
+    </script>
 @endsection

@@ -8,7 +8,19 @@
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
-                        <h2 class="text-2xl font-bold mb-6">Telebot Admin Panel</h2>
+                        <div class="d-flex justify-content-between align-items-center mb-6">
+                            <h2 class="text-2xl font-bold mb-0">Telebot Admin Panel</h2>
+                            <div class="btn-group" role="group">
+                                <a href="{{ route('admin.videos.manage') }}"
+                                    class="btn btn-outline-primary {{ request()->routeIs('admin.videos.*') ? 'active' : '' }}">
+                                    <i class="fas fa-video me-1"></i>Videos
+                                </a>
+                                <a href="{{ route('admin.purchases.index') }}"
+                                    class="btn btn-outline-success {{ request()->routeIs('admin.purchases.*') ? 'active' : '' }}">
+                                    <i class="fas fa-shopping-cart me-1"></i>Purchases
+                                </a>
+                            </div>
+                        </div>
 
                         <!-- Token Management Section -->
                         <div class="mb-6 border-b pb-6">
@@ -256,6 +268,7 @@
                                                     <th>Title</th>
                                                     <th>Description</th>
                                                     <th>Price</th>
+                                                    <th>Thumbnail</th>
                                                     <th>File ID</th>
                                                     <th>Actions</th>
                                                 </tr>
@@ -283,13 +296,30 @@
                                                             @endif
                                                         </td>
                                                         <td>
+                                                            @if ($video->hasThumbnail())
+                                                                <div class="d-flex align-items-center">
+                                                                    <img src="{{ $video->getThumbnailUrl() }}"
+                                                                        alt="Thumbnail"
+                                                                        style="width: 40px; height: 30px; object-fit: cover;"
+                                                                        class="rounded me-2">
+                                                                    @if ($video->shouldShowBlurred())
+                                                                        <span class="badge bg-warning">Blurred</span>
+                                                                    @else
+                                                                        <span class="badge bg-success">Clear</span>
+                                                                    @endif
+                                                                </div>
+                                                            @else
+                                                                <span class="text-muted">No thumbnail</span>
+                                                            @endif
+                                                        </td>
+                                                        <td>
                                                             <code
                                                                 style="font-size: 10px;">{{ $video->telegram_file_id }}</code>
                                                         </td>
                                                         <td>
                                                             <div class="btn-group btn-group-sm">
                                                                 <button type="button" class="btn btn-outline-primary"
-                                                                    onclick="editVideo({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }})">
+                                                                    onclick="editVideo({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }}, '{{ $video->getThumbnailUrl() }}', '{{ $video->thumbnail_url }}', {{ $video->show_blurred_thumbnail ? 'true' : 'false' }}, {{ $video->blur_intensity }}, {{ $video->allow_preview ? 'true' : 'false' }})">
                                                                     <i class="fas fa-edit"></i>
                                                                 </button>
                                                                 @if ($syncUserTelegramId)
@@ -410,31 +440,132 @@
 
     {{-- Edit Video Modal --}}
     <div class="modal fade" id="editVideoModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Video</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="editVideoForm" onsubmit="updateVideo(event)">
+                <form id="editVideoForm" onsubmit="updateVideo(event)" enctype="multipart/form-data">
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="edit-title" class="form-label">Title</label>
-                            <input type="text" class="form-control" id="edit-title" name="title" required>
+                        <div class="row">
+                            <!-- Basic Video Details -->
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3"><i class="fas fa-info-circle text-primary"></i> Video Details
+                                </h6>
+                                <div class="mb-3">
+                                    <label for="edit-title" class="form-label">Title</label>
+                                    <input type="text" class="form-control" id="edit-title" name="title" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit-description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="edit-description" name="description" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit-price" class="form-label">Price ($)</label>
+                                    <input type="number" class="form-control" id="edit-price" name="price"
+                                        step="0.01" min="0" required>
+                                </div>
+                            </div>
+
+                            <!-- Thumbnail Management -->
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3"><i class="fas fa-image text-success"></i> Thumbnail Settings</h6>
+
+                                <!-- Current Thumbnail Preview -->
+                                <div id="current-thumbnail-preview" class="mb-3" style="display: none;">
+                                    <label class="form-label">Current Thumbnail</label>
+                                    <div class="border rounded p-2">
+                                        <img id="current-thumbnail-img" src="" alt="Current thumbnail"
+                                            class="img-fluid rounded" style="max-height: 120px;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2"
+                                            onclick="removeThumbnail()">
+                                            <i class="fas fa-trash"></i> Remove
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Upload New Thumbnail -->
+                                <div class="mb-3">
+                                    <label for="edit-thumbnail" class="form-label">Upload Thumbnail</label>
+                                    <input type="file" class="form-control" id="edit-thumbnail" name="thumbnail"
+                                        accept="image/*" onchange="previewThumbnail(this)">
+                                    <div class="form-text">Upload JPG, PNG, or GIF image (max 2MB)</div>
+                                </div>
+
+                                <!-- External Thumbnail URL -->
+                                <div class="mb-3">
+                                    <label for="edit-thumbnail-url" class="form-label">Or External URL</label>
+                                    <input type="url" class="form-control" id="edit-thumbnail-url"
+                                        name="thumbnail_url" placeholder="https://example.com/image.jpg">
+                                </div>
+
+                                <!-- Thumbnail Preview (New Upload) -->
+                                <div id="new-thumbnail-preview" class="mb-3" style="display: none;">
+                                    <label class="form-label">New Thumbnail Preview</label>
+                                    <div class="border rounded p-2">
+                                        <img id="new-thumbnail-img" src="" alt="New thumbnail"
+                                            class="img-fluid rounded" style="max-height: 120px;">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="edit-description" class="form-label">Description</label>
-                            <textarea class="form-control" id="edit-description" name="description" rows="3"></textarea>
+
+                        <hr>
+
+                        <!-- Blur Settings -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="fw-bold mb-3"><i class="fas fa-eye text-warning"></i> Customer Display Settings
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="edit-show-blurred"
+                                            name="show_blurred_thumbnail" value="1" checked>
+                                        <label class="form-check-label" for="edit-show-blurred">
+                                            Show Blurred Thumbnail to Customers
+                                        </label>
+                                    </div>
+                                    <div class="form-text">When enabled, customers see a blurred version until purchase
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="edit-blur-intensity" class="form-label">Blur Intensity</label>
+                                    <input type="range" class="form-range" id="edit-blur-intensity"
+                                        name="blur_intensity" min="1" max="20" value="10">
+                                    <div class="d-flex justify-content-between">
+                                        <small class="text-muted">Light</small>
+                                        <small class="text-muted">Heavy</small>
+                                    </div>
+                                    <div class="form-text">Intensity: <span id="blur-intensity-display">10</span>px</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="edit-price" class="form-label">Price</label>
-                            <input type="number" class="form-control" id="edit-price" name="price" step="0.01"
-                                min="0" required>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="edit-allow-preview"
+                                            name="allow_preview" value="1">
+                                        <label class="form-check-label" for="edit-allow-preview">
+                                            Allow Unblurred Preview
+                                        </label>
+                                    </div>
+                                    <div class="form-text">Allow customers to see unblurred version on hover/click</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
                     </div>
                 </form>
             </div>
@@ -812,10 +943,36 @@
         }
 
         // Edit Video Functions
-        function editVideo(id, title, description, price) {
+        function editVideo(id, title, description, price, thumbnailPath, thumbnailUrl, showBlurred, blurIntensity,
+            allowPreview) {
+            // Set basic video fields
             document.getElementById('edit-title').value = title;
             document.getElementById('edit-description').value = description;
             document.getElementById('edit-price').value = price;
+
+            // Set thumbnail fields
+            document.getElementById('edit-thumbnail-url').value = thumbnailUrl || '';
+
+            // Set blur settings
+            document.getElementById('edit-show-blurred').checked = showBlurred;
+            document.getElementById('edit-blur-intensity').value = blurIntensity || 10;
+            document.getElementById('blur-intensity-display').textContent = blurIntensity || 10;
+            document.getElementById('edit-allow-preview').checked = allowPreview;
+
+            // Show current thumbnail if exists
+            const currentThumbnailPreview = document.getElementById('current-thumbnail-preview');
+            const currentThumbnailImg = document.getElementById('current-thumbnail-img');
+
+            if (thumbnailPath) {
+                currentThumbnailImg.src = thumbnailPath;
+                currentThumbnailPreview.style.display = 'block';
+            } else {
+                currentThumbnailPreview.style.display = 'none';
+            }
+
+            // Reset upload preview
+            document.getElementById('new-thumbnail-preview').style.display = 'none';
+            document.getElementById('edit-thumbnail').value = '';
 
             // Store the video ID for submission
             document.getElementById('editVideoForm').setAttribute('data-video-id', id);
@@ -829,21 +986,30 @@
 
             const form = event.target;
             const videoId = form.getAttribute('data-video-id');
-            const formData = {
-                title: document.getElementById('edit-title').value,
-                description: document.getElementById('edit-description').value,
-                price: document.getElementById('edit-price').value
-            };
+            const formData = new FormData(form);
+
+            // Add the method override to form data
+            formData.append('_method', 'PUT');
 
             fetch(`/admin/videos/${videoId}`, {
-                    method: 'PUT',
+                    method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json'
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify(formData)
+                    body: formData
                 })
-                .then(response => response.json())
+                .then(async response => {
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        // If not JSON, it might be an error page
+                        const text = await response.text();
+                        console.error('Non-JSON response:', text);
+                        throw new Error('Server returned non-JSON response');
+                    }
+                })
                 .then(data => {
                     if (data.success) {
                         showAlert('success', 'Video updated successfully!');
@@ -852,14 +1018,43 @@
                             window.location.reload();
                         }, 1500);
                     } else {
-                        showAlert('danger', data.error || 'Failed to update video');
+                        showAlert('danger', data.message || data.error || 'Failed to update video');
                     }
                 })
                 .catch(error => {
-                    showAlert('danger', 'Network error occurred');
+                    showAlert('danger', 'Network error occurred: ' + error.message);
                     console.error('Update video failed:', error);
                 });
         }
+
+        // Thumbnail management functions
+        function previewThumbnail(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('new-thumbnail-img').src = e.target.result;
+                    document.getElementById('new-thumbnail-preview').style.display = 'block';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function removeThumbnail() {
+            document.getElementById('current-thumbnail-preview').style.display = 'none';
+            // You could add an AJAX call here to actually remove the thumbnail from the server
+        }
+
+        // Blur intensity slider update
+        document.addEventListener('DOMContentLoaded', function() {
+            const blurSlider = document.getElementById('edit-blur-intensity');
+            const blurDisplay = document.getElementById('blur-intensity-display');
+
+            if (blurSlider && blurDisplay) {
+                blurSlider.addEventListener('input', function() {
+                    blurDisplay.textContent = this.value;
+                });
+            }
+        });
 
         // Show alert
         function showAlert(type, message) {

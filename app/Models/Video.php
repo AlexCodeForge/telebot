@@ -28,7 +28,11 @@ class Video extends Model
         'duration',
         'width',
         'height',
+        'thumbnail_path',
         'thumbnail_url',
+        'show_blurred_thumbnail',
+        'blur_intensity',
+        'allow_preview',
     ];
 
     /**
@@ -163,5 +167,53 @@ class Video extends Model
         }
 
         return $this;
+    }
+
+    /**
+     * Get the thumbnail URL (uploaded or external)
+     *
+     * @return string|null
+     */
+    public function getThumbnailUrl(): ?string
+    {
+        if ($this->thumbnail_path) {
+            return asset('storage/thumbnails/' . $this->thumbnail_path);
+        }
+
+        return $this->thumbnail_url;
+    }
+
+    /**
+     * Get the blurred thumbnail CSS style
+     *
+     * @return string
+     */
+    public function getBlurredThumbnailStyle(): string
+    {
+        if (!$this->show_blurred_thumbnail) {
+            return '';
+        }
+
+        return "filter: blur({$this->blur_intensity}px);";
+    }
+
+    /**
+     * Check if video has a thumbnail
+     *
+     * @return bool
+     */
+    public function hasThumbnail(): bool
+    {
+        return !empty($this->thumbnail_path) || !empty($this->thumbnail_url);
+    }
+
+    /**
+     * Check if thumbnail should be shown blurred to customers
+     *
+     * @return bool
+     */
+    public function shouldShowBlurred(): bool
+    {
+        return $this->show_blurred_thumbnail && $this->hasThumbnail();
     }
 }

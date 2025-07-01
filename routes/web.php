@@ -15,6 +15,7 @@ Route::get('/payment/{video}/form', [PaymentController::class, 'form'])->name('p
 Route::post('/payment/{video}/process', [PaymentController::class, 'process'])->name('payment.process');
 Route::get('/payment/{video}/success', [PaymentController::class, 'success'])->name('payment.success');
 Route::get('/payment/{video}/cancel', [PaymentController::class, 'cancel'])->name('payment.cancel');
+Route::get('/purchase/{uuid}', [PaymentController::class, 'viewPurchase'])->name('purchase.view');
 
 // Authentication routes
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -47,6 +48,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Testing and manual import
     Route::get('/admin/videos/test-connection', [VideoController::class, 'testConnection'])->name('admin.videos.test-connection');
     Route::post('/admin/videos/manual-import', [VideoController::class, 'manualImport'])->name('admin.videos.manual-import');
+
+    // Purchase management routes
+    Route::get('/admin/purchases', [\App\Http\Controllers\Admin\PurchaseController::class, 'index'])->name('admin.purchases.index');
+    Route::get('/admin/purchases/{purchase}', [\App\Http\Controllers\Admin\PurchaseController::class, 'show'])->name('admin.purchases.show');
+    Route::post('/admin/purchases/{purchase}/verify', [\App\Http\Controllers\Admin\PurchaseController::class, 'verify'])->name('admin.purchases.verify');
+    Route::post('/admin/purchases/{purchase}/mark-delivered', [\App\Http\Controllers\Admin\PurchaseController::class, 'markDelivered'])->name('admin.purchases.mark-delivered');
+    Route::post('/admin/purchases/{purchase}/retry-delivery', [\App\Http\Controllers\Admin\PurchaseController::class, 'retryDelivery'])->name('admin.purchases.retry-delivery');
+    Route::post('/admin/purchases/{purchase}/update-notes', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateNotes'])->name('admin.purchases.update-notes');
 });
 
 // Telegram webhook (must be accessible without auth)

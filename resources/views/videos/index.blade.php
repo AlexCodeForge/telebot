@@ -13,9 +13,21 @@
             @foreach ($videos as $video)
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card h-100 shadow-sm">
-                        @if ($video->thumbnail_url)
-                            <img src="{{ $video->thumbnail_url }}" class="card-img-top" alt="Video thumbnail"
-                                style="height: 200px; object-fit: cover;">
+                        @if ($video->hasThumbnail())
+                            <div class="position-relative" style="height: 200px;">
+                                <img src="{{ $video->getThumbnailUrl() }}" class="card-img-top" alt="Video thumbnail"
+                                    style="height: 200px; object-fit: cover; {{ $video->shouldShowBlurred() ? $video->getBlurredThumbnailStyle() : '' }}"
+                                    @if ($video->allow_preview) onmouseover="this.style.filter='none';"
+                                        onmouseout="this.style.filter='{{ $video->shouldShowBlurred() ? 'blur(' . $video->blur_intensity . 'px)' : 'none' }}';" @endif>
+                                @if ($video->shouldShowBlurred())
+                                    <div class="position-absolute top-50 start-50 translate-middle">
+                                        <div class="text-center text-white bg-dark bg-opacity-75 px-3 py-2 rounded">
+                                            <i class="fas fa-lock fa-2x mb-2"></i>
+                                            <div class="small">Preview after purchase</div>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
                         @else
                             <div class="card-img-top d-flex align-items-center justify-content-center bg-light"
                                 style="height: 200px;">

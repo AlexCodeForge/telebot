@@ -81,8 +81,8 @@ class PaymentController extends Controller
                     ],
                 ],
                 'mode' => 'payment',
-                'success_url' => route('payment.success', $video->id),
-                'cancel_url' => route('payment.cancel', $video->id),
+                'success_url' => route('payment.success', ['video' => $video->id]) . '?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('payment.cancel', ['video' => $video->id]) . '?session_id={CHECKOUT_SESSION_ID}',
                 'metadata' => [
                     'video_id' => $video->id,
                     'telegram_username' => $request->telegram_username,
@@ -98,9 +98,47 @@ class PaymentController extends Controller
     /**
      * Handle successful payment
      */
-    public function success(Video $video)
+    public function success(Request $request, Video $video)
     {
-        return view('payment.success', compact('video'));
+        $sessionId = $request->query('session_id');
+
+        if (!$sessionId) {
+            abort(404, 'Invalid payment session');
+        }
+
+        try {
+            $stripeSecret = $this->getStripeSecretKey();
+            Stripe::setApiKey($stripeSecret);
+
+            // Retrieve the session from Stripe
+            $session = Session::retrieve($sessionId);
+
+            if ($session->payment_status !== 'paid') {
+                abort(404, 'Payment not completed');
+            }
+
+            // Check if purchase record already exists
+            $existingPurchase = Purchase::where('stripe_session_id', $sessionId)->first();
+
+            if (!$existingPurchase) {
+                // Create purchase record
+                $purchase = $this->createPurchaseRecord($session, $video);
+            } else {
+                $purchase = $existingPurchase;
+            }
+
+            // Redirect to secure purchase page using UUID
+            return redirect()->route('purchase.view', $purchase->purchase_uuid);
+        } catch (\Exception $e) {
+            Log::error('Payment success handling failed', [
+                'session_id' => $sessionId,
+                'video_id' => $video->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('payment.cancel', $video)
+                ->withErrors(['payment' => 'Payment verification failed. Please contact support.']);
+        }
     }
 
     /**
@@ -109,6 +147,20 @@ class PaymentController extends Controller
     public function cancel(Video $video)
     {
         return view('payment.cancel', compact('video'));
+    }
+
+    /**
+     * Show purchase details (secure with UUID)
+     */
+    public function viewPurchase(string $uuid)
+    {
+        $purchase = Purchase::findByUuid($uuid);
+
+        if (!$purchase) {
+            abort(404, 'Purchase not found');
+        }
+
+        return view('payment.purchase', compact('purchase'));
     }
 
     /**

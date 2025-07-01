@@ -89,6 +89,21 @@
                                     </a>
                                 </li>
                                 <li>
+                                    <a class="dropdown-item" href="{{ route('admin.purchases.index') }}">
+                                        <i class="fas fa-shopping-cart"></i> Manage Purchases
+                                        @php
+                                            $pendingPurchases = \App\Models\Purchase::where(
+                                                'verification_status',
+                                                'pending',
+                                            )->count();
+                                        @endphp
+                                        @if ($pendingPurchases > 0)
+                                            <span class="badge bg-info text-dark ms-2">{{ $pendingPurchases }}
+                                                pending</span>
+                                        @endif
+                                    </a>
+                                </li>
+                                <li>
                                     <hr class="dropdown-divider">
                                 </li>
                                 <li>

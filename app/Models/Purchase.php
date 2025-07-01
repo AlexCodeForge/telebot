@@ -5,10 +5,25 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class Purchase extends Model
 {
     use HasFactory;
+
+    /**
+     * Boot the model and generate UUID on creation.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($purchase) {
+            if (empty($purchase->purchase_uuid)) {
+                $purchase->purchase_uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -16,6 +31,7 @@ class Purchase extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'purchase_uuid',
         'stripe_session_id',
         'stripe_payment_intent_id',
         'stripe_customer_id',
@@ -25,11 +41,13 @@ class Purchase extends Model
         'currency',
         'customer_email',
         'telegram_username',
+        'telegram_user_id',
         'delivery_status',
         'delivered_at',
         'delivery_notes',
         'delivery_attempts',
         'purchase_status',
+        'verification_status',
         'refunded_at',
         'stripe_metadata',
         'delivery_metadata',
@@ -180,5 +198,66 @@ class Purchase extends Model
     {
         return $this->delivery_attempts < 3 &&
             in_array($this->delivery_status, ['pending', 'failed', 'retrying']);
+    }
+
+    /**
+     * Verify and link purchase to telegram user.
+     */
+    public function verifyTelegramUser(string $telegramUserId): bool
+    {
+        if ($this->verification_status === 'verified') {
+            return true; // Already verified
+        }
+
+        // Link the purchase to the telegram user ID
+        $this->update([
+            'telegram_user_id' => $telegramUserId,
+            'verification_status' => 'verified'
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Check if purchase is verified.
+     */
+    public function isVerified(): bool
+    {
+        return $this->verification_status === 'verified';
+    }
+
+    /**
+     * Check if purchase is pending verification.
+     */
+    public function isPendingVerification(): bool
+    {
+        return $this->verification_status === 'pending';
+    }
+
+    /**
+     * Mark as invalid verification.
+     */
+    public function markAsInvalid(): void
+    {
+        $this->update(['verification_status' => 'invalid']);
+    }
+
+    /**
+     * Find purchases by telegram username for verification.
+     */
+    public static function findForVerification(string $telegramUsername)
+    {
+        return self::where('telegram_username', ltrim($telegramUsername, '@'))
+            ->where('verification_status', 'pending')
+            ->where('purchase_status', 'completed')
+            ->get();
+    }
+
+    /**
+     * Get purchase by UUID (secure lookup).
+     */
+    public static function findByUuid(string $uuid)
+    {
+        return self::where('purchase_uuid', $uuid)->first();
     }
 }
