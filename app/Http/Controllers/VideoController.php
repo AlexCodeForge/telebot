@@ -6,9 +6,8 @@ use App\Models\Video;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Telegram\Bot\Laravel\Facades\Telegram;
-use Exception;
 use Illuminate\Support\Facades\Http;
+use Exception;
 
 class VideoController extends Controller
 {
@@ -85,22 +84,36 @@ class VideoController extends Controller
         }
 
         try {
-            Telegram::sendVideo([
+            $botToken = config('telegram.bot_token');
+            if (!$botToken) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Bot token not configured'
+                ]);
+            }
+
+            $response = Http::post("https://api.telegram.org/bot{$botToken}/sendVideo", [
                 'chat_id' => $syncUserTelegramId,
                 'video' => $video->telegram_file_id,
-                'caption' => "📹 **{$video->title}**\n💰 Price: \${$video->price}\n\n" . ($video->description ?? ''),
-                'parse_mode' => 'Markdown'
+                'caption' => "🧪 Test Video\n\n📹 {$video->title}\n💰 Price: $" . number_format($video->price, 2) . "\n🆔 ID: {$video->id}"
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => "Video sent to {$syncUserName} successfully!"
-            ]);
-        } catch (Exception $e) {
-            Log::error('Failed to send video to sync user: ' . $e->getMessage());
+            if ($response->successful()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Test video sent successfully'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Failed to send video'
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Test video error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to send video: ' . $e->getMessage()
+                'error' => 'Failed to send test video'
             ]);
         }
     }
@@ -190,42 +203,93 @@ class VideoController extends Controller
     /**
      * Admin: Deactivate webhook to allow getUpdates.
      */
+    // Deactivate webhook
     public function deactivateWebhook()
     {
         try {
-            $result = Telegram::removeWebhook();
-            Log::info('Webhook deactivated', ['result' => $result]);
-            return response()->json([
-                'success' => true,
-                'message' => 'Webhook deactivated successfully'
-            ]);
-        } catch (Exception $e) {
-            Log::error('Failed to deactivate webhook: ' . $e->getMessage());
+            $botToken = config('telegram.bot_token');
+            if (!$botToken) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Bot token not configured'
+                ]);
+            }
+
+            $response = Http::post("https://api.telegram.org/bot{$botToken}/deleteWebhook");
+
+            if ($response->successful()) {
+                $data = $response->json();
+                if ($data['ok']) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Webhook deactivated successfully'
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'error' => $data['description'] ?? 'Failed to delete webhook'
+                    ]);
+                }
+            }
+
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => 'Failed to communicate with Telegram API'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error deactivating webhook: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Network error occurred'
             ]);
         }
     }
 
-    /**
-     * Admin: Reactivate webhook.
-     */
+    // Reactivate webhook
     public function reactivateWebhook()
     {
         try {
-            $webhookUrl = config('telegram.bots.mybot.webhook_url');
-            $result = Telegram::setWebhook(['url' => $webhookUrl]);
-            Log::info('Webhook reactivated', ['webhook_url' => $webhookUrl, 'result' => $result]);
-            return response()->json([
-                'success' => true,
-                'message' => 'Webhook reactivated successfully'
+            $botToken = config('telegram.bot_token');
+            if (!$botToken) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Bot token not configured'
+                ]);
+            }
+
+            // First, delete any existing webhook
+            Http::post("https://api.telegram.org/bot{$botToken}/deleteWebhook");
+
+            // Set new webhook
+            $webhookUrl = url('/telegram/webhook');
+            $response = Http::post("https://api.telegram.org/bot{$botToken}/setWebhook", [
+                'url' => $webhookUrl
             ]);
-        } catch (Exception $e) {
-            Log::error('Failed to reactivate webhook: ' . $e->getMessage());
+
+            if ($response->successful()) {
+                $data = $response->json();
+                if ($data['ok']) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Webhook activated successfully'
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'error' => $data['description'] ?? 'Failed to set webhook'
+                    ]);
+                }
+            }
+
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => 'Failed to communicate with Telegram API'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error reactivating webhook: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Network error occurred'
             ]);
         }
     }
