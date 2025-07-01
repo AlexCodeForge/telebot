@@ -194,10 +194,71 @@ APP_KEY=$(docker run --rm php:8.2-cli php -r "echo 'base64:' . base64_encode(ran
 # Create environment file with provided credentials
 echo "📝 Creating environment configuration..."
 cat > .env << EOF
+APP_NAME=TeleBot
+APP_ENV=local
 APP_KEY=$APP_KEY
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+
+LOG_CHANNEL=stack
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=sqlite
+DB_DATABASE=/var/www/html/database/database.sqlite
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=smtp
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="\${APP_NAME}"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+PUSHER_APP_ID=
+PUSHER_APP_KEY=
+PUSHER_APP_SECRET=
+PUSHER_HOST=
+PUSHER_PORT=443
+PUSHER_SCHEME=https
+PUSHER_APP_CLUSTER=mt1
+
+VITE_PUSHER_APP_KEY="\${PUSHER_APP_KEY}"
+VITE_PUSHER_HOST="\${PUSHER_HOST}"
+VITE_PUSHER_PORT="\${PUSHER_PORT}"
+VITE_PUSHER_SCHEME="\${PUSHER_SCHEME}"
+VITE_PUSHER_APP_CLUSTER="\${PUSHER_APP_CLUSTER}"
+
+# Telegram Bot Configuration
 TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN
+
+# Stripe Configuration
 STRIPE_KEY=$STRIPE_PUBLIC
 STRIPE_SECRET=$STRIPE_SECRET
+CASHIER_CURRENCY=usd
+CASHIER_CURRENCY_LOCALE=en_US
+
+# Domain Configuration
 DOMAIN=$DOMAIN
 EOF
 
@@ -215,17 +276,18 @@ services:
     volumes:
       - ./storage:/var/www/html/storage
       - ./database/database.sqlite:/var/www/html/database/database.sqlite
+      - ./.env:/var/www/html/.env
     environment:
       - APP_NAME=TeleBot
-      - APP_ENV=production
-      - APP_KEY=base64:${APP_KEY}
-      - APP_DEBUG=false
-      - APP_URL=https://${DOMAIN}
+      - APP_ENV=local
+      - APP_KEY=$APP_KEY
+      - APP_DEBUG=true
+      - APP_URL=http://$(curl -s ifconfig.me):8000
       - DB_CONNECTION=sqlite
       - DB_DATABASE=/var/www/html/database/database.sqlite
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_TOKEN}
-      - STRIPE_KEY=${STRIPE_PUBLIC}
-      - STRIPE_SECRET=${STRIPE_SECRET}
+      - TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN
+      - STRIPE_KEY=$STRIPE_PUBLIC
+      - STRIPE_SECRET=$STRIPE_SECRET
       - CASHIER_CURRENCY=usd
       - CASHIER_CURRENCY_LOCALE=en_US
     networks:
@@ -306,6 +368,22 @@ sleep 30
 echo "📊 Container Status:"
 $DOCKER_COMPOSE_CMD ps
 
+# Check if the application is responding
+echo ""
+echo "🔍 Checking application health..."
+SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo "YOUR_SERVER_IP")
+if curl -s --max-time 10 "http://$SERVER_IP:8000" > /dev/null; then
+    echo "✅ Application is responding!"
+else
+    echo "⚠️  Application may not be ready yet. Checking logs..."
+    echo ""
+    echo "📋 Recent Laravel Logs:"
+    $DOCKER_COMPOSE_CMD exec -T telebot tail -20 /var/www/html/storage/logs/laravel.log 2>/dev/null || echo "No logs found yet"
+    echo ""
+    echo "📋 Container Logs:"
+    $DOCKER_COMPOSE_CMD logs --tail=20 telebot
+fi
+
 echo ""
 echo "🎉 Deployment Complete!"
 echo "======================"
@@ -314,6 +392,7 @@ echo "📋 Next Steps:"
 echo ""
 echo "1. 🌐 Your TeleBot is running on port 8000"
 echo "   Test: http://$(curl -s ifconfig.me):8000"
+echo "   If you see a 500 error, check the troubleshooting section below."
 echo ""
 echo "2. 🔧 Configure SSL Certificate:"
 echo "   • Go to: http://$(curl -s ifconfig.me):81"
@@ -336,9 +415,18 @@ echo "   • Email: admin@admin.com"
 echo "   • Password: password"
 echo ""
 echo "🛠️  Useful Commands:"
-echo "   • View logs: $DOCKER_COMPOSE_CMD logs -f"
-echo "   • Restart: $DOCKER_COMPOSE_CMD restart"
+echo "   • View logs: $DOCKER_COMPOSE_CMD logs -f telebot"
+echo "   • Laravel logs: $DOCKER_COMPOSE_CMD exec telebot tail -f /var/www/html/storage/logs/laravel.log"
+echo "   • Restart: $DOCKER_COMPOSE_CMD restart telebot"
+echo "   • Rebuild: $DOCKER_COMPOSE_CMD up --build -d"
 echo "   • Stop: $DOCKER_COMPOSE_CMD down"
+echo ""
+echo "🔧 Troubleshooting:"
+echo "   If you see a 500 error:"
+echo "   1. Check Laravel logs: $DOCKER_COMPOSE_CMD logs telebot"
+echo "   2. Check file permissions: $DOCKER_COMPOSE_CMD exec telebot ls -la storage/"
+echo "   3. Check database: $DOCKER_COMPOSE_CMD exec telebot ls -la database/"
+echo "   4. Run migrations manually: $DOCKER_COMPOSE_CMD exec telebot php artisan migrate"
 echo ""
 echo "🎯 Your TeleBot will be live at: https://$DOMAIN"
 echo ""
