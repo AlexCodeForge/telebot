@@ -259,9 +259,9 @@ chmod 664 database/database.sqlite
 echo "📝 Creating environment configuration..."
 cat > .env << EOF
 APP_NAME="TeleBot Video Store"
-APP_ENV=production
+APP_ENV=local
 APP_KEY=
-APP_DEBUG=false
+APP_DEBUG=true
 APP_TIMEZONE=UTC
 APP_URL=http://$SERVER_IP:8000
 
@@ -277,7 +277,7 @@ BCRYPT_ROUNDS=12
 LOG_CHANNEL=stack
 LOG_STACK=single
 LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=error
+LOG_LEVEL=debug
 
 DB_CONNECTION=sqlite
 DB_DATABASE=/var/www/html/database/database.sqlite
