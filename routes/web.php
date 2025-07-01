@@ -34,6 +34,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(
     Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
     Route::post('/videos/{video}/test', [VideoController::class, 'testVideo'])->name('videos.test');
     Route::post('/videos/bulk-action', [VideoController::class, 'bulkAction'])->name('videos.bulk-action');
+    Route::post('/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('admin.videos.set-sync-user');
+    Route::post('/videos/set-sync-method', [VideoController::class, 'setSyncMethod'])->name('admin.videos.set-sync-method');
+    Route::post('/videos/sync', [VideoController::class, 'syncVideos'])->name('admin.videos.sync');
 });
 
 // Telegram webhook

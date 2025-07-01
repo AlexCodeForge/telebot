@@ -174,6 +174,130 @@
                 {{ $videos->links() }}
             </div>
         @endif
+
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                    <div>
+                        <div class="font-medium text-green-900">Current Sync Target</div>
+                        <div class="text-green-700">
+                            {{ $syncDisplayInfo['name'] }}
+                        </div>
+                        <div class="text-sm text-green-600">
+                            Telegram ID: {{ $syncDisplayInfo['telegram_id'] }}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button type="button" onclick="openSyncUserModal()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center">
+                        <i class="fas fa-cog mr-2"></i>
+                        Set Sync User
+                    </button>
+                    <button type="button" onclick="openSyncMethodModal()"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm flex items-center">
+                        <i class="fas fa-exchange-alt mr-2"></i>
+                        Sync Method
+                    </button>
+                    <form method="POST" action="{{ route('admin.videos.sync') }}" style="display: inline;">
+                        @csrf
+                        <button type="submit"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm flex items-center">
+                            <i class="fas fa-sync mr-2"></i>
+                            Sync Videos
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sync Method Indicator -->
+            <div class="mt-3 pt-3 border-t border-green-200">
+                <div class="text-sm text-green-600">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Current sync method:
+                    <span class="font-medium">
+                        @if ($syncMethod === 'webhook')
+                            Webhook-based (automatic capture)
+                        @else
+                            getUpdates (polling, default)
+                        @endif
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Method Modal -->
+    <div id="syncMethodModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <div class="px-6 py-4 border-b">
+                    <h3 class="text-lg font-medium text-gray-900">Configure Sync Method</h3>
+                    <button type="button" onclick="closeSyncMethodModal()"
+                        class="float-right -mt-6 text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <form method="POST" action="{{ route('admin.videos.set-sync-method') }}">
+                    @csrf
+                    <div class="px-6 py-4">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="flex items-start">
+                                    <input type="radio" name="sync_method" value="getupdates"
+                                        {{ $syncMethod === 'getupdates' ? 'checked' : '' }} class="mt-1 mr-3">
+                                    <div>
+                                        <div class="font-medium text-gray-900">getUpdates (Polling) - Default</div>
+                                        <div class="text-sm text-gray-600">
+                                            • Works in all environments (local, hosting with/without SSL)<br>
+                                            • Temporarily removes webhook during sync<br>
+                                            • Only syncs recent messages (last ~100 updates)<br>
+                                            • Safe and reliable for most use cases
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label class="flex items-start">
+                                    <input type="radio" name="sync_method" value="webhook"
+                                        {{ $syncMethod === 'webhook' ? 'checked' : '' }} class="mt-1 mr-3">
+                                    <div>
+                                        <div class="font-medium text-gray-900">Webhook-based (Automatic)</div>
+                                        <div class="text-sm text-gray-600">
+                                            • Videos automatically captured when sent to bot<br>
+                                            • No conflicts with existing webhooks<br>
+                                            • Requires videos to be sent directly to the bot<br>
+                                            • Better for production with active webhook setup
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-blue-50 rounded-md">
+                            <div class="text-sm text-blue-700">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                <strong>Recommendation:</strong> Use getUpdates for development/testing and webhook for
+                                production environments.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
+                        <button type="button" onclick="closeSyncMethodModal()"
+                            class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                            Save Method
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -202,6 +326,15 @@
                 form.value = price;
                 form.closest('form').submit();
             }
+        }
+
+        // Sync Method Modal Functions
+        function openSyncMethodModal() {
+            document.getElementById('syncMethodModal').classList.remove('hidden');
+        }
+
+        function closeSyncMethodModal() {
+            document.getElementById('syncMethodModal').classList.add('hidden');
         }
     </script>
 @endsection

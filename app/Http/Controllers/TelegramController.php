@@ -59,6 +59,8 @@ class TelegramController extends Controller
             $fileName = $video['file_name'] ?? 'Unknown Video';
             $duration = $video['duration'] ?? 0;
             $fileSize = $video['file_size'] ?? 0;
+            $width = $video['width'] ?? null;
+            $height = $video['height'] ?? null;
 
             // Get caption if provided
             $caption = $message['caption'] ?? '';
@@ -71,12 +73,25 @@ class TelegramController extends Controller
                 return;
             }
 
-            // Create new video entry
+            // Create new video entry with enhanced metadata
             $videoData = [
-                'title' => $caption ?: $fileName,
-                'description' => "Video uploaded via Telegram bot\nDuration: " . gmdate("H:i:s", $duration) . "\nFile size: " . $this->formatFileSize($fileSize) . "\nUploaded by: {$firstName}" . ($username ? " (@{$username})" : ""),
+                'title' => $caption ?: ($fileName !== 'Unknown Video' ? $fileName : "Video from {$firstName}"),
+                'description' => $caption ?: "Video uploaded via Telegram bot\nDuration: " . gmdate("H:i:s", $duration) . "\nFile size: " . $this->formatFileSize($fileSize) . "\nUploaded by: {$firstName}" . ($username ? " (@{$username})" : ""),
                 'price' => 0.00, // Default price - admin will set later
                 'telegram_file_id' => $fileId,
+                'file_size' => $fileSize,
+                'duration' => $duration,
+                'width' => $width,
+                'height' => $height,
+                'file_unique_id' => $video['file_unique_id'] ?? null,
+                'video_type' => 'video',
+                'telegram_group_chat_id' => $chatId,
+                'telegram_message_id' => $message['message_id'] ?? null,
+                'telegram_message_data' => $message,
+                // Extract thumbnail data if available
+                'thumbnail_file_id' => $video['thumbnail']['file_id'] ?? null,
+                'thumbnail_width' => $video['thumbnail']['width'] ?? null,
+                'thumbnail_height' => $video['thumbnail']['height'] ?? null,
             ];
 
             $newVideo = Video::create($videoData);
@@ -87,19 +102,25 @@ class TelegramController extends Controller
             $message .= "🆔 *Video ID:* {$newVideo->id}\n";
             $message .= "⏱️ *Duration:* " . gmdate("H:i:s", $duration) . "\n";
             $message .= "📦 *Size:* " . $this->formatFileSize($fileSize) . "\n";
+            if ($width && $height) {
+                $message .= "📐 *Resolution:* {$width}x{$height}\n";
+            }
             $message .= "💰 *Price:* Free (Admin will set pricing)\n\n";
             $message .= "✅ The video has been added to the system and is ready for admin review!";
 
             $this->sendMessage($chatId, $message, 'Markdown');
 
-            // Log the new video capture
+            // Log the new video capture with enhanced info
             Log::info('New video captured via Telegram bot', [
                 'video_id' => $newVideo->id,
                 'telegram_file_id' => $fileId,
+                'telegram_user_id' => $telegramUserId,
                 'uploaded_by' => $username ?? $telegramUserId,
                 'file_name' => $fileName,
                 'duration' => $duration,
-                'file_size' => $fileSize
+                'file_size' => $fileSize,
+                'resolution' => $width && $height ? "{$width}x{$height}" : null,
+                'has_thumbnail' => isset($video['thumbnail']['file_id'])
             ]);
         } catch (Exception $e) {
             Log::error('Error handling video message', [
