@@ -36,66 +36,172 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Detect OS
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS=$ID
+    VERSION=$VERSION_ID
+else
+    echo "❌ Cannot detect OS. This script supports Ubuntu/Debian only."
+    exit 1
+fi
+
+echo "🔍 Detected OS: $OS $VERSION"
+
 # Update system packages
 echo "📦 Updating system packages..."
+export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 
-# Function to install Docker
-install_docker() {
-    echo "🐳 Installing Docker..."
+# Install essential tools first
+echo "🛠️ Installing essential tools..."
+apt-get install -y curl wget apt-transport-https ca-certificates gnupg lsb-release software-properties-common
 
-    # Remove old Docker versions
-    apt-get remove -y docker docker-engine docker.io containerd runc || true
+# Function to install Docker via snap (fallback method)
+install_docker_snap() {
+    echo "🐳 Installing Docker via snap (fallback method)..."
+    apt-get install -y snapd
+    snap install docker
+    systemctl start snap.docker.dockerd
+    systemctl enable snap.docker.dockerd
+    ln -sf /snap/bin/docker /usr/local/bin/docker
 
-    # Install prerequisites
-    apt-get install -y ca-certificates curl gnupg lsb-release
+    # Wait for Docker to be ready
+    sleep 10
+    if docker --version; then
+        echo "✅ Docker installed via snap!"
+        return 0
+    else
+        return 1
+    fi
+}
 
-    # Add Docker's official GPG key
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    chmod a+r /etc/apt/keyrings/docker.gpg
+# Function to install Docker via convenience script
+install_docker_convenience() {
+    echo "🐳 Installing Docker via convenience script..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    rm get-docker.sh
 
-    # Set up the repository
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-    # Update package index again
-    apt-get update -y
-
-    # Install Docker Engine
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-    # Start and enable Docker
     systemctl start docker
     systemctl enable docker
 
-    echo "✅ Docker installed successfully!"
+    if docker --version; then
+        echo "✅ Docker installed via convenience script!"
+        return 0
+    else
+        return 1
+    fi
 }
 
-# Check if Docker is installed and running
-if ! command -v docker &> /dev/null; then
-    echo "🔍 Docker not found. Installing Docker..."
-    install_docker
-elif ! docker info > /dev/null 2>&1; then
-    echo "🔍 Docker found but not running. Starting Docker..."
-    systemctl start docker
-    sleep 5
+# Function to install Docker the standard way
+install_docker_standard() {
+    echo "🐳 Installing Docker (standard method)..."
+
+    # Remove old Docker versions
+    apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+
+    # Create keyrings directory
+    mkdir -p /etc/apt/keyrings
+
+    # Try to add Docker's GPG key (with fallback)
+    if ! curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null; then
+        echo "⚠️  Failed to add GPG key via curl, trying wget..."
+        if ! wget -qO- https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null; then
+            echo "❌ Failed to add Docker GPG key"
+            return 1
+        fi
+    fi
+
+    chmod a+r /etc/apt/keyrings/docker.gpg
+
+    # Add Docker repository
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # Update package index
+    apt-get update -y
+
+    # Install Docker
+    if apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin; then
+        systemctl start docker
+        systemctl enable docker
+
+        if docker --version; then
+            echo "✅ Docker installed (standard method)!"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Try to install Docker (multiple methods)
+if command -v docker &> /dev/null && docker --version &> /dev/null; then
+    echo "✅ Docker is already installed"
+    # Try to start it if it's not running
     if ! docker info > /dev/null 2>&1; then
-        echo "❌ Failed to start Docker. Reinstalling..."
-        install_docker
+        echo "🔧 Starting Docker service..."
+        systemctl start docker || service docker start || true
+        sleep 5
     fi
 else
-    echo "✅ Docker is already installed and running"
+    echo "🔍 Docker not found. Attempting installation..."
+
+    # Try standard method first
+    if ! install_docker_standard; then
+        echo "⚠️  Standard installation failed, trying convenience script..."
+        if ! install_docker_convenience; then
+            echo "⚠️  Convenience script failed, trying snap..."
+            if ! install_docker_snap; then
+                echo "❌ All Docker installation methods failed."
+                echo "🔧 Please install Docker manually and run this script again."
+                exit 1
+            fi
+        fi
+    fi
 fi
 
-# Verify Docker Compose
-if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
-    echo "📦 Using standalone docker-compose"
-elif docker compose version &> /dev/null; then
+# Final Docker verification
+if ! docker --version; then
+    echo "❌ Docker installation verification failed"
+    exit 1
+fi
+
+# Try to start Docker if it's not running
+if ! docker info > /dev/null 2>&1; then
+    echo "🔧 Docker not responding, attempting to start..."
+    systemctl start docker 2>/dev/null || service docker start 2>/dev/null || snap start docker 2>/dev/null || true
+    sleep 10
+
+    if ! docker info > /dev/null 2>&1; then
+        echo "❌ Docker failed to start. Please check system logs:"
+        echo "   systemctl status docker"
+        echo "   journalctl -u docker"
+        exit 1
+    fi
+fi
+
+echo "✅ Docker is running!"
+
+# Install Docker Compose if not available
+if ! docker compose version &> /dev/null && ! command -v docker-compose &> /dev/null; then
+    echo "📦 Installing Docker Compose..."
+
+    # Try to install standalone docker-compose
+    COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+    curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+fi
+
+# Determine Docker Compose command
+if docker compose version &> /dev/null; then
     DOCKER_COMPOSE="docker compose"
     echo "📦 Using docker compose plugin"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+    echo "📦 Using standalone docker-compose"
 else
-    echo "❌ Docker Compose not found. This should not happen with modern Docker installation."
+    echo "❌ Docker Compose not available"
     exit 1
 fi
 
@@ -107,12 +213,14 @@ fi
 
 # Install other useful tools
 echo "🛠️ Installing additional tools..."
-apt-get install -y curl wget unzip htop nano ufw
+apt-get install -y unzip htop nano ufw
 
 # Set up firewall
 echo "🔥 Configuring firewall..."
+ufw --force reset
 ufw --force enable
 ufw allow ssh
+ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 8000/tcp
@@ -215,17 +323,28 @@ echo "✅ Environment file created successfully!"
 
 # Stop any existing containers
 echo "🛑 Stopping any existing containers..."
-$DOCKER_COMPOSE down --remove-orphans || true
+$DOCKER_COMPOSE down --remove-orphans 2>/dev/null || true
 
 # Clean up old images
 echo "🗑️ Cleaning up old Docker images..."
 docker rmi telebot-app:latest 2>/dev/null || true
-docker system prune -f || true
+docker system prune -f 2>/dev/null || true
 
 # Build and start containers
 echo "🔨 Building and starting TeleBot containers..."
 echo "   ⏳ This may take a few minutes on first run..."
-$DOCKER_COMPOSE up --build -d
+if ! $DOCKER_COMPOSE up --build -d; then
+    echo "❌ Failed to start containers. Checking for issues..."
+    echo "🔍 Docker Compose logs:"
+    $DOCKER_COMPOSE logs
+    echo ""
+    echo "🔍 Docker system info:"
+    docker system df
+    echo ""
+    echo "🔍 Available disk space:"
+    df -h
+    exit 1
+fi
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to initialize..."
@@ -324,25 +443,36 @@ echo "🔧 Creating convenient management commands..."
 cat > /usr/local/bin/telebot << 'EOF'
 #!/bin/bash
 cd /opt/telebot
+
+# Detect Docker Compose command
+if command -v docker-compose &> /dev/null; then
+    DC="docker-compose"
+elif docker compose version &> /dev/null; then
+    DC="docker compose"
+else
+    echo "❌ Docker Compose not found"
+    exit 1
+fi
+
 case "$1" in
     logs)
-        docker compose logs -f
+        $DC logs -f
         ;;
     restart)
-        docker compose restart
+        $DC restart
         ;;
     stop)
-        docker compose down
+        $DC down
         ;;
     start)
-        docker compose up -d
+        $DC up -d
         ;;
     status)
-        docker compose ps
+        $DC ps
         ;;
     update)
         git pull origin master
-        docker compose up --build -d
+        $DC up --build -d
         ;;
     *)
         echo "TeleBot Management Commands:"
