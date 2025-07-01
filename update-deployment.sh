@@ -3,6 +3,24 @@
 # Update TeleBot deployment with admin user migration
 echo "🔄 Updating TeleBot deployment with admin user migration..."
 
+# Check if required parameters are provided
+if [ $# -lt 3 ]; then
+    echo "❌ Usage: $0 <telegram_token> <stripe_public_key> <stripe_secret_key> [domain]"
+    echo "📝 Example: $0 'YOUR_TELEGRAM_TOKEN' 'pk_test_...' 'sk_test_...' 'alexcodeforge.com'"
+    exit 1
+fi
+
+TELEGRAM_TOKEN="$1"
+STRIPE_PUBLIC_KEY="$2"
+STRIPE_SECRET_KEY="$3"
+DOMAIN="${4:-localhost}"
+
+echo "🔧 Configuration:"
+echo "   🤖 Telegram Token: ${TELEGRAM_TOKEN:0:10}..."
+echo "   💳 Stripe Public Key: ${STRIPE_PUBLIC_KEY:0:20}..."
+echo "   💳 Stripe Secret Key: ${STRIPE_SECRET_KEY:0:20}..."
+echo "   🌐 Domain: $DOMAIN"
+
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
     echo "❌ Docker is not running. Please start Docker first."
@@ -37,6 +55,83 @@ fi
 cd "$REPO_DIR"
 echo "📂 Working in directory: $(pwd)"
 
+# Create .env file with the provided credentials
+echo "📝 Creating .env file with your credentials..."
+cat > .env << EOF
+APP_NAME="TeleBot Video Store"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_TIMEZONE=UTC
+APP_URL=https://$DOMAIN
+
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+
+APP_MAINTENANCE_DRIVER=file
+APP_MAINTENANCE_STORE=database
+
+BCRYPT_ROUNDS=12
+
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=sqlite
+DB_DATABASE=/var/www/html/database/database.sqlite
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=database
+
+CACHE_STORE=database
+CACHE_PREFIX=
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=log
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="\${APP_NAME}"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+VITE_APP_NAME="\${APP_NAME}"
+
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN
+
+# Stripe Configuration
+STRIPE_KEY=$STRIPE_PUBLIC_KEY
+STRIPE_SECRET=$STRIPE_SECRET_KEY
+CASHIER_CURRENCY=usd
+CASHIER_CURRENCY_LOCALE=en_US
+CASHIER_LOGGER=stack
+EOF
+
+echo "✅ Environment file created successfully!"
+
 # Stop and remove existing containers
 echo "🛑 Stopping existing containers..."
 $DOCKER_COMPOSE down --remove-orphans || true
@@ -57,6 +152,7 @@ sleep 30
 if docker ps | grep -q "telebot-app"; then
     echo "✅ TeleBot app is running!"
     echo "🌐 Access your app at: http://207.148.24.73:8000"
+    echo "🌐 Access via domain: https://$DOMAIN (after SSL setup)"
     echo "👤 Admin login: admin@telebot.com / admin123"
 else
     echo "❌ TeleBot app failed to start. Checking logs..."
@@ -65,3 +161,8 @@ fi
 
 echo "🔧 Nginx Proxy Manager admin: http://207.148.24.73:81"
 echo "   Default credentials: admin@example.com / changeme"
+echo ""
+echo "📋 Next steps:"
+echo "   1. Set up SSL in Nginx Proxy Manager (port 81)"
+echo "   2. Use a real email address for Let's Encrypt"
+echo "   3. Access your site at https://$DOMAIN"
