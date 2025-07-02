@@ -84,9 +84,7 @@ class VideoController extends Controller
         // Log incoming request for debugging
         Log::info('Video update request', [
             'video_id' => $video->id,
-            'has_file' => $request->hasFile('thumbnail'),
-            'file_valid' => $request->hasFile('thumbnail') ? $request->file('thumbnail')->isValid() : null,
-            'request_data' => $request->except(['thumbnail'])
+            'request_data' => $request->all()
         ]);
 
         try {
@@ -111,8 +109,8 @@ class VideoController extends Controller
         $updateData = $request->only(['title', 'description', 'price', 'thumbnail_url', 'blur_intensity']);
 
         // Handle boolean fields explicitly (checkboxes send no value when unchecked)
-        $updateData['show_blurred_thumbnail'] = $request->has('show_blurred_thumbnail') ? 1 : 0;
-        $updateData['allow_preview'] = $request->has('allow_preview') ? 1 : 0;
+        $updateData['show_blurred_thumbnail'] = $request->has('show_blurred_thumbnail') && $request->input('show_blurred_thumbnail') == '1' ? 1 : 0;
+        $updateData['allow_preview'] = $request->has('allow_preview') && $request->input('allow_preview') == '1' ? 1 : 0;
 
         // Handle thumbnail upload
         if ($request->hasFile('thumbnail') && $request->file('thumbnail')->isValid()) {
@@ -169,6 +167,13 @@ class VideoController extends Controller
                 ]);
             }
         }
+
+        Log::info('Updating video with data', [
+            'video_id' => $video->id,
+            'update_data' => $updateData,
+            'original_show_blurred' => $video->show_blurred_thumbnail,
+            'new_show_blurred' => $updateData['show_blurred_thumbnail'] ?? 'not set'
+        ]);
 
         $video->update($updateData);
 
