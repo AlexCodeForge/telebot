@@ -96,7 +96,7 @@ Route::get('/run-migrations-setup-once', function () {
             // If checking fails, probably no tables exist yet - continue with setup
         }
 
-        // Method 1: Try migrate:fresh (complete reset)
+        // Method 1: Try migrate:fresh (complete reset) - Works best with Supabase
         try {
             Artisan::call('migrate:fresh', ['--force' => true]);
             $migrationOutput = Artisan::output();
@@ -108,17 +108,17 @@ Route::get('/run-migrations-setup-once', function () {
                 $migrationOutput = Artisan::output();
                 $migrationMethod = 'migrate';
             } catch (\Exception $regularError) {
-                // Method 3: If both fail, try to reset and retry
+                // Method 3: For Supabase - simple schema reset
                 try {
-                    // Try to drop all tables manually and recreate
-                    DB::statement('DROP SCHEMA public CASCADE');
+                    // Supabase-compatible schema reset (no Neon-specific commands)
+                    DB::statement('DROP SCHEMA IF EXISTS public CASCADE');
                     DB::statement('CREATE SCHEMA public');
-                    DB::statement('GRANT ALL ON SCHEMA public TO neondb_owner');
-                    DB::statement('GRANT ALL ON SCHEMA public TO public');
+                    DB::statement('GRANT USAGE ON SCHEMA public TO public');
+                    DB::statement('GRANT CREATE ON SCHEMA public TO public');
 
                     Artisan::call('migrate', ['--force' => true]);
                     $migrationOutput = Artisan::output();
-                    $migrationMethod = 'manual reset + migrate';
+                    $migrationMethod = 'supabase schema reset + migrate';
                 } catch (\Exception $resetError) {
                     throw new \Exception("All migration methods failed. Last error: " . $resetError->getMessage());
                 }
@@ -157,8 +157,8 @@ Route::get('/run-migrations-setup-once', function () {
             'status' => 'error',
             'message' => 'Setup failed: ' . $e->getMessage(),
             'solutions' => [
-                '1. Go to Neon dashboard → SQL Editor → Run: DROP SCHEMA public CASCADE; CREATE SCHEMA public;',
-                '2. Or go to your Neon dashboard → Settings → Reset Database',
+                '1. Go to your Supabase dashboard → SQL Editor → Run: DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;',
+                '2. Or check your Vercel environment variables are using Supabase Transaction Pooler',
                 '3. Then try this endpoint again'
             ],
             'debug' => [
@@ -166,7 +166,7 @@ Route::get('/run-migrations-setup-once', function () {
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ],
-            'contact' => 'If this persists, the database might have permission issues'
+            'contact' => 'If this persists, verify your Supabase connection details'
         ], 500);
     }
 });
