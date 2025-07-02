@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Pagination\Paginator;
 use Laravel\Cashier\Events\WebhookReceived;
 use App\Listeners\HandleSuccessfulPayment;
 
@@ -22,6 +23,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Use Bootstrap 5 pagination views
+        Paginator::defaultView('vendor.pagination.bootstrap-5');
+        Paginator::defaultSimpleView('vendor.pagination.simple-bootstrap-5');
+
         // Register Cashier webhook event listener
         Event::listen(
             WebhookReceived::class,

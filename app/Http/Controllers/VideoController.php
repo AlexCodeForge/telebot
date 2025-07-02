@@ -753,7 +753,20 @@ class VideoController extends Controller
             $chatId = $message['chat']['id'];
             $text = $message['text'] ?? '';
 
+            Log::info('Processing webhook message', [
+                'from_user_id' => $fromUserId,
+                'username' => $username,
+                'chat_id' => $chatId,
+                'text' => $text,
+                'first_name' => $firstName
+            ]);
+
             $syncUserTelegramId = Setting::get('sync_user_telegram_id');
+
+            Log::info('Sync user check', [
+                'sync_user_telegram_id' => $syncUserTelegramId,
+                'is_sync_user' => ($fromUserId == $syncUserTelegramId)
+            ]);
 
             // **SYNC USER FLOW** - Handle video uploads from admin
             if ($fromUserId == $syncUserTelegramId) {
@@ -823,6 +836,13 @@ class VideoController extends Controller
 
             // **CUSTOMER FLOW** - Handle purchase verification and delivery
             else {
+                Log::info('Processing customer message', [
+                    'from_user_id' => $fromUserId,
+                    'username' => $username,
+                    'text' => $text,
+                    'is_command' => str_starts_with($text, '/')
+                ]);
+
                 // Handle customer commands
                 if (str_starts_with($text, '/')) {
                     $this->handleCustomerCommand($text, $chatId, $fromUserId, $username, $firstName);
@@ -1036,6 +1056,13 @@ class VideoController extends Controller
      */
     private function handleCustomerGetVideoCommand($chatId, $telegramUserId, $username, $videoId)
     {
+        Log::info('Customer getvideo command', [
+            'chat_id' => $chatId,
+            'telegram_user_id' => $telegramUserId,
+            'username' => $username,
+            'video_id' => $videoId
+        ]);
+
         if (!$username) {
             $this->sendTelegramMessage($chatId, "❌ You need a Telegram username to use this bot. Please set one in Telegram settings.");
             return;
@@ -1049,6 +1076,13 @@ class VideoController extends Controller
             ->with('video')
             ->first();
 
+        Log::info('Purchase lookup result', [
+            'telegram_user_id' => $telegramUserId,
+            'video_id' => $videoId,
+            'found_verified_purchase' => $purchase ? true : false,
+            'purchase_id' => $purchase ? $purchase->id : null
+        ]);
+
         if (!$purchase) {
             // Check for pending purchase
             $pendingPurchase = \App\Models\Purchase::where('telegram_username', $username)
@@ -1057,9 +1091,35 @@ class VideoController extends Controller
                 ->where('purchase_status', 'completed')
                 ->first();
 
+            Log::info('Pending purchase lookup', [
+                'username' => $username,
+                'video_id' => $videoId,
+                'found_pending_purchase' => $pendingPurchase ? true : false,
+                'pending_purchase_id' => $pendingPurchase ? $pendingPurchase->id : null
+            ]);
+
             if ($pendingPurchase) {
                 $this->sendTelegramMessage($chatId, "⏳ *Purchase Pending Verification*\n\nVideo #{$videoId} needs verification.\n\nUse /start to verify purchases!");
             } else {
+                // Let's also check if there are ANY purchases for this user
+                $anyPurchases = \App\Models\Purchase::where('telegram_username', $username)
+                    ->where('purchase_status', 'completed')
+                    ->get();
+
+                Log::info('All user purchases check', [
+                    'username' => $username,
+                    'total_purchases' => $anyPurchases->count(),
+                    'purchases' => $anyPurchases->map(function($p) {
+                        return [
+                            'id' => $p->id,
+                            'video_id' => $p->video_id,
+                            'verification_status' => $p->verification_status,
+                            'delivery_status' => $p->delivery_status,
+                            'telegram_user_id' => $p->telegram_user_id
+                        ];
+                    })
+                ]);
+
                 $this->sendTelegramMessage($chatId, "❌ *Access Denied*\n\nYou haven't purchased video #{$videoId}.\n\nUse /mypurchases to see available videos.");
             }
             return;
@@ -1169,28 +1229,43 @@ class VideoController extends Controller
     {
         try {
             $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
+
+            if (!$botToken || $botToken === 'YOUR-BOT-TOKEN') {
+                Log::error('Invalid or missing bot token');
+                return false;
+            }
+
             $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
 
             $data = [
                 'chat_id' => $chatId,
                 'text' => $text,
-                'parse_mode' => 'HTML'
+                'parse_mode' => 'Markdown'
             ];
 
-            $response = Http::post($url, $data);
+            $response = Http::timeout(30)->post($url, $data);
 
             if ($response->successful()) {
-                Log::info('Telegram message sent successfully', ['chat_id' => $chatId]);
+                Log::info('Telegram message sent successfully', [
+                    'chat_id' => $chatId,
+                    'message_preview' => substr($text, 0, 100)
+                ]);
                 return $response->json();
             } else {
                 Log::error('Failed to send Telegram message', [
                     'chat_id' => $chatId,
-                    'response' => $response->body()
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                    'message_preview' => substr($text, 0, 100)
                 ]);
                 return false;
             }
         } catch (\Exception $e) {
-            Log::error('Telegram message sending failed: ' . $e->getMessage());
+            Log::error('Telegram message sending failed', [
+                'chat_id' => $chatId,
+                'error' => $e->getMessage(),
+                'message_preview' => substr($text, 0, 100)
+            ]);
             return false;
         }
     }
