@@ -17,7 +17,7 @@
                                 <div class="position-absolute top-50 start-50 translate-middle">
                                     <div class="text-center text-white bg-dark bg-opacity-75 px-4 py-3 rounded">
                                         <i class="fas fa-lock fa-3x mb-3"></i>
-                                        <div class="h6">Thumbnail Preview</div>
+                                        <div class="h6">Video Preview</div>
                                         <div class="small">
                                             @if ($video->allow_preview)
                                                 Click to preview •

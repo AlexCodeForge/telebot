@@ -10,73 +10,97 @@
                     <h4 class="mb-0"><i class="fas fa-shopping-cart"></i> Purchase Video</h4>
                 </div>
                 <div class="card-body">
-                    <!-- Video Details -->
+                    <!-- Video Details with Thumbnail -->
                     <div class="card bg-light mb-4">
+                        @if ($video->hasThumbnail())
+                            <img src="{{ $video->getThumbnailUrl() }}" class="card-img-top" alt="Video thumbnail" style="height: 300px; object-fit: cover; filter: blur(2px);">
+                        @endif
                         <div class="card-body">
                             <h5 class="card-title">{{ $video->title }}</h5>
-                            <p class="card-text text-muted">{{ $video->description }}</p>
-                            <h3 class="text-success mb-0">
-                                <i class="fas fa-dollar-sign"></i>{{ number_format($video->price, 2) }}
-                            </h3>
+                            <p class="card-text">{{ $video->description }}</p>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>Price:</strong>
+                                    <span class="h5 text-success">${{ number_format($video->price, 2) }}</span>
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Duration:</strong> {{ $video->duration ?? 'N/A' }}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- How It Works -->
-                    <div class="alert alert-info">
-                        <h6 class="alert-heading"><i class="fas fa-info-circle"></i> How it works:</h6>
-                        <ol class="mb-0">
-                            <li><strong>Enter your Telegram username below</strong></li>
-                            <li><strong>Complete your payment with Stripe</strong></li>
-                            <li><strong>Start a chat with our bot and type /start to get your video!</strong></li>
-                        </ol>
                     </div>
 
                     <!-- Payment Form -->
-                    <form id="paymentForm">
+                    <form action="{{ route('payment.process', $video) }}" method="POST">
                         @csrf
-
-                        <div class="mb-3">
-                            <label for="telegram_username" class="form-label">
-                                <i class="fab fa-telegram"></i> Telegram Username *
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text">@</span>
-                                <input type="text" id="telegram_username" name="telegram_username"
-                                    class="form-control @error('telegram_username') is-invalid @enderror"
-                                    placeholder="your_username" value="{{ old('telegram_username') }}" required>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="telegram_username" class="form-label">
+                                        <i class="fab fa-telegram"></i> Telegram Username <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">@</span>
+                                        <input type="text"
+                                               class="form-control @error('telegram_username') is-invalid @enderror"
+                                               id="telegram_username"
+                                               name="telegram_username"
+                                               value="{{ old('telegram_username') }}"
+                                               placeholder="your_username"
+                                               required>
+                                    </div>
+                                    @error('telegram_username')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                    <small class="form-text text-muted">
+                                        Enter your Telegram username (without @). The video will be sent to this account.
+                                    </small>
+                                </div>
                             </div>
-                            <div class="form-text">
-                                Your Telegram username (without the @). This is how we'll deliver your video!
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="email" class="form-label">
+                                        <i class="fas fa-envelope"></i> Email Address <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="email"
+                                           class="form-control @error('email') is-invalid @enderror"
+                                           id="email"
+                                           name="email"
+                                           value="{{ old('email') }}"
+                                           placeholder="your@email.com"
+                                           required>
+                                    @error('email')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                    <small class="form-text text-muted">
+                                        For receipt and order confirmation.
+                                    </small>
+                                </div>
                             </div>
-                            @error('telegram_username')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
                         </div>
 
-                        @if ($errors->has('payment'))
-                            <div class="alert alert-danger">
-                                <i class="fas fa-exclamation-triangle"></i> {{ $errors->first('payment') }}
-                            </div>
-                        @endif
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>How it works:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Complete payment using Stripe (secure)</li>
+                                <li>Start a chat with our bot: <a href="https://t.me/videotestpowerbot" target="_blank">@videotestpowerbot</a></li>
+                                <li>Your video will be delivered automatically!</li>
+                            </ol>
+                        </div>
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-success btn-lg" id="paymentButton">
-                                <i class="fas fa-credit-card"></i> Proceed to Payment
-                                (${{ number_format($video->price, 2) }})
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-credit-card"></i>
+                                Pay ${{ number_format($video->price, 2) }} with Stripe
                             </button>
                         </div>
                     </form>
 
-                    <!-- Bot Info -->
-                    <div class="alert alert-success mt-4">
-                        <h6 class="alert-heading"><i class="fab fa-telegram"></i> After payment:</h6>
-                        <p class="mb-0">
-                            Once your payment is complete, start a chat with our bot
-                            <a href="https://t.me/videotestpowerbot" target="_blank" class="alert-link">
-                                <strong>@videotestpowerbot</strong>
-                            </a>
-                            and type <strong>/start</strong> to activate your purchase and get your video!
-                        </p>
+                    <div class="text-center mt-3">
+                        <a href="{{ route('videos.show', $video) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Video
+                        </a>
                     </div>
                 </div>
             </div>
