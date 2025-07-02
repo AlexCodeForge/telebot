@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\TelegramController;
@@ -71,6 +74,56 @@ Route::get('/bot-test', [TelegramController::class, 'botEmulator']); // Alias
 
 // System status
 Route::get('/system-status', [TelegramController::class, 'systemStatus']);
+
+// One-time migration and setup route (REMOVE AFTER FIRST USE)
+Route::get('/run-migrations-setup-once', function () {
+    try {
+        // Check if migrations have already been run by looking for the users table
+        if (Schema::hasTable('users')) {
+            return response()->json([
+                'status' => 'already_completed',
+                'message' => 'Database setup has already been completed. This endpoint is now disabled for security.'
+            ], 403);
+        }
+
+        // Run migrations
+        Artisan::call('migrate', ['--force' => true]);
+        $migrationOutput = Artisan::output();
+
+        // Create admin user
+        $adminUser = \App\Models\User::create([
+            'name' => 'Admin User',
+            'email' => 'admin@telebot.local',
+            'password' => Hash::make('admin123456'), // Change this password immediately
+            'email_verified_at' => now(),
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Database migrations completed and admin user created successfully!',
+            'admin_credentials' => [
+                'email' => 'admin@telebot.local',
+                'password' => 'admin123456',
+                'note' => 'IMPORTANT: Change this password immediately after first login!'
+            ],
+            'migration_output' => $migrationOutput,
+            'next_steps' => [
+                '1. Login with the admin credentials above',
+                '2. Change the admin password immediately',
+                '3. Remove this route from routes/web.php for security',
+                '4. Push the updated code to GitHub'
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Setup failed: ' . $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ], 500);
+    }
+});
 
 // API routes
 Route::post('/api/create-payment-intent', [PaymentController::class, 'createPaymentIntent'])->name('api.create-payment-intent');
