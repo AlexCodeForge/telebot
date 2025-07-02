@@ -14,13 +14,20 @@ class TelegramBotService
     public function getBotInfo(): ?array
     {
         try {
+            // Check if bot token is configured
+            $botToken = config('telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
+            if (empty($botToken)) {
+                Log::info('Telegram bot token not configured, using fallback');
+                return null;
+            }
+
             // Cache bot info for 1 hour to avoid repeated API calls
             return Cache::remember('telegram_bot_info', 3600, function () {
                 $response = Telegram::getMe();
                 return $response->toArray();
             });
         } catch (\Exception $e) {
-            Log::error('Failed to get bot info from Telegram API', [
+            Log::warning('Failed to get bot info from Telegram API (using fallback)', [
                 'error' => $e->getMessage()
             ]);
             return null;
@@ -38,14 +45,14 @@ class TelegramBotService
             return '@' . $botInfo['username'];
         }
 
-        // Fallback to environment variable or default
-        $fallbackToken = config('telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
-        if ($fallbackToken) {
-            // Try to extract from token (not reliable but better than hardcoded)
-            Log::warning('Using fallback method for bot username - API call failed');
+        // Fallback - check if we can get from environment or config
+        $botToken = config('telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
+        if ($botToken) {
+            Log::info('Using fallback bot username - API call failed but token exists');
         }
 
-        // Ultimate fallback - but this should be replaced once API works
+        // Ultimate fallback (will be replaced once bot token is properly configured)
+        Log::info('Using hardcoded fallback bot username - configure TELEGRAM_BOT_TOKEN');
         return '@videotestpowerbot';
     }
 
@@ -85,6 +92,7 @@ class TelegramBotService
             'url' => $this->getBotUrl(),
             'first_name' => $botInfo['first_name'] ?? 'Bot',
             'description' => $botInfo['description'] ?? null,
+            'is_configured' => !empty(config('telegram.bot_token', env('TELEGRAM_BOT_TOKEN'))),
         ];
     }
 }

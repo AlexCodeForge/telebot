@@ -9,6 +9,7 @@ use App\Http\Controllers\VideoController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Auth;
 
 // Customer-facing routes
 Route::get('/', [VideoController::class, 'index'])->name('videos.index');
@@ -29,43 +30,182 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Admin-only routes
-Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+// Admin-only routes (temporary direct check instead of middleware)
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
+        // Check if user is admin
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
         return redirect()->route('admin.videos.manage');
     })->name('dashboard');
 
     // Admin video management routes
-    Route::get('/admin/videos', [VideoController::class, 'manage'])->name('admin.videos.manage');
-    Route::put('/admin/videos/{video}', [VideoController::class, 'update'])->name('admin.videos.update');
-    Route::delete('/admin/videos/{video}', [VideoController::class, 'destroy'])->name('admin.videos.destroy');
-    Route::post('/admin/videos/{video}/test', [VideoController::class, 'testVideo'])->name('admin.videos.test');
+    Route::get('/admin/videos', function() {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return app(\App\Http\Controllers\VideoController::class)->manage();
+    })->name('admin.videos.manage');
+
+    Route::put('/admin/videos/{video}', [VideoController::class, 'update'])->name('admin.videos.update')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::delete('/admin/videos/{video}', [VideoController::class, 'destroy'])->name('admin.videos.destroy')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/videos/{video}/test', [VideoController::class, 'testVideo'])->name('admin.videos.test')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
 
     // Webhook management
-    Route::post('/admin/videos/deactivate-webhook', [VideoController::class, 'deactivateWebhook'])->name('admin.videos.deactivate-webhook');
-    Route::post('/admin/videos/reactivate-webhook', [VideoController::class, 'reactivateWebhook'])->name('admin.videos.reactivate-webhook');
-    Route::get('/admin/videos/webhook-status', [VideoController::class, 'webhookStatus'])->name('admin.videos.webhook-status');
+    Route::post('/admin/videos/deactivate-webhook', [VideoController::class, 'deactivateWebhook'])->name('admin.videos.deactivate-webhook')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/videos/reactivate-webhook', [VideoController::class, 'reactivateWebhook'])->name('admin.videos.reactivate-webhook')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::get('/admin/videos/webhook-status', [VideoController::class, 'webhookStatus'])->name('admin.videos.webhook-status')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
 
     // Sync user management
-    Route::post('/admin/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('admin.videos.set-sync-user');
-    Route::post('/admin/videos/remove-sync-user', [VideoController::class, 'removeSyncUser'])->name('admin.videos.remove-sync-user');
+    Route::post('/admin/videos/set-sync-user', [VideoController::class, 'setSyncUser'])->name('admin.videos.set-sync-user')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/videos/remove-sync-user', [VideoController::class, 'removeSyncUser'])->name('admin.videos.remove-sync-user')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
 
     // Token management
-    Route::post('/admin/tokens/save-all', [VideoController::class, 'saveAllTokens'])->name('admin.tokens.save-all');
+    Route::post('/admin/tokens/save-all', [VideoController::class, 'saveAllTokens'])->name('admin.tokens.save-all')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
 
     // Testing and manual import
-    Route::get('/admin/videos/test-connection', [VideoController::class, 'testConnection'])->name('admin.videos.test-connection');
-    Route::post('/admin/videos/manual-import', [VideoController::class, 'manualImport'])->name('admin.videos.manual-import');
+    Route::get('/admin/videos/test-connection', [VideoController::class, 'testConnection'])->name('admin.videos.test-connection')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/videos/manual-import', [VideoController::class, 'manualImport'])->name('admin.videos.manual-import')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
 
     // Purchase management routes
-    Route::get('/admin/purchases', [\App\Http\Controllers\Admin\PurchaseController::class, 'index'])->name('admin.purchases.index');
-    Route::get('/admin/purchases/{purchase}', [\App\Http\Controllers\Admin\PurchaseController::class, 'show'])->name('admin.purchases.show');
-    Route::post('/admin/purchases/{purchase}/verify', [\App\Http\Controllers\Admin\PurchaseController::class, 'verify'])->name('admin.purchases.verify');
-    Route::post('/admin/purchases/{purchase}/mark-delivered', [\App\Http\Controllers\Admin\PurchaseController::class, 'markDelivered'])->name('admin.purchases.mark-delivered');
-    Route::post('/admin/purchases/{purchase}/retry-delivery', [\App\Http\Controllers\Admin\PurchaseController::class, 'retryDelivery'])->name('admin.purchases.retry-delivery');
-    Route::post('/admin/purchases/{purchase}/update-notes', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateNotes'])->name('admin.purchases.update-notes');
-    Route::post('/admin/purchases/{purchase}/update-username', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateTelegramUsername'])->name('admin.purchases.update-username');
-    Route::post('/admin/purchases/fix-stuck-deliveries', [\App\Http\Controllers\Admin\PurchaseController::class, 'fixStuckDeliveries'])->name('admin.purchases.fix-stuck-deliveries');
+    Route::get('/admin/purchases', [\App\Http\Controllers\Admin\PurchaseController::class, 'index'])->name('admin.purchases.index')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::get('/admin/purchases/{purchase}', [\App\Http\Controllers\Admin\PurchaseController::class, 'show'])->name('admin.purchases.show')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/purchases/{purchase}/verify', [\App\Http\Controllers\Admin\PurchaseController::class, 'verify'])->name('admin.purchases.verify')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/purchases/{purchase}/mark-delivered', [\App\Http\Controllers\Admin\PurchaseController::class, 'markDelivered'])->name('admin.purchases.mark-delivered')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/purchases/{purchase}/retry-delivery', [\App\Http\Controllers\Admin\PurchaseController::class, 'retryDelivery'])->name('admin.purchases.retry-delivery')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/purchases/{purchase}/update-notes', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateNotes'])->name('admin.purchases.update-notes')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/purchases/{purchase}/update-username', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateTelegramUsername'])->name('admin.purchases.update-username')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
+
+    Route::post('/admin/purchases/fix-stuck-deliveries', [\App\Http\Controllers\Admin\PurchaseController::class, 'fixStuckDeliveries'])->name('admin.purchases.fix-stuck-deliveries')->middleware(function ($request, $next) {
+        if (!Auth::user()->is_admin) {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
+        }
+        return $next($request);
+    });
 });
 
 // Telegram webhook (must be accessible without auth)
