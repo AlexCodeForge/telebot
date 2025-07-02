@@ -62,24 +62,22 @@
                         <div class="text-center mb-4">
                             @if ($video->telegram_file_id)
                                 @if ($video->isFree())
-                                    <div class="alert alert-success">
+                                    <div class="alert alert-success text-center">
                                         <h5><i class="fas fa-gift"></i> This video is FREE!</h5>
-                                        <p class="mb-2">🤖 <strong>Get instant access via our Telegram bot:</strong></p>
-                                        <ol class="mb-3">
-                                            <li>Start a conversation with our bot: <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-sm btn-primary">@videotestpowerbot</a></li>
-                                            <li>Send this command: <a href="https://t.me/videotestpowerbot?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-sm btn-success">/getvideo {{ $video->id }}</a></li>
-                                            <li>Get your free video instantly!</li>
-                                        </ol>
-                                        <p class="mb-0"><small class="text-muted">No purchase required - available to all users!</small></p>
-                                    </div>
-                                    <div class="text-center">
+                                        <p class="mb-3">🤖 <strong>Get instant access via our Telegram bot</strong></p>
+
                                         <a href="https://t.me/videotestpowerbot?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-success btn-lg mb-3">
-                                            <i class="fab fa-telegram"></i> Get Free Video Now
+                                            <i class="fab fa-telegram me-2"></i>Get Free Video Now
                                         </a>
-                                        <br>
-                                        <a href="{{ route('videos.index') }}" class="btn btn-outline-primary">
-                                            <i class="fas fa-arrow-left"></i> Back to Store
-                                        </a>
+
+                                        <div class="mt-3">
+                                            <small class="text-muted">
+                                                <strong>Manual Steps:</strong><br>
+                                                1. Start chat with <a href="https://t.me/videotestpowerbot" target="_blank">@videotestpowerbot</a><br>
+                                                2. Send command: <code>/getvideo {{ $video->id }}</code><br>
+                                                3. Get your video instantly!
+                                            </small>
+                                        </div>
                                     </div>
                                 @else
                                     <a href="{{ route('payment.form', $video) }}" class="btn btn-success btn-lg mb-3">

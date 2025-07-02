@@ -33,8 +33,8 @@
                     <!-- Payment Form -->
                     <form action="{{ route('payment.process', $video) }}" method="POST">
                         @csrf
-                        <div class="row">
-                            <div class="col-md-6">
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
                                 <div class="form-group mb-3">
                                     <label for="telegram_username" class="form-label">
                                         <i class="fab fa-telegram"></i> Telegram Username <span class="text-danger">*</span>
@@ -54,26 +54,6 @@
                                     @enderror
                                     <small class="form-text text-muted">
                                         Enter your Telegram username (without @). The video will be sent to this account.
-                                    </small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="email" class="form-label">
-                                        <i class="fas fa-envelope"></i> Email Address <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="email"
-                                           class="form-control @error('email') is-invalid @enderror"
-                                           id="email"
-                                           name="email"
-                                           value="{{ old('email') }}"
-                                           placeholder="your@email.com"
-                                           required>
-                                    @error('email')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                    <small class="form-text text-muted">
-                                        For receipt and order confirmation.
                                     </small>
                                 </div>
                             </div>

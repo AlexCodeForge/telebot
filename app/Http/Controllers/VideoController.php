@@ -1118,10 +1118,10 @@ class VideoController extends Controller
                 $message .= "💰 {$purchase->formatted_amount} {$deliveryStatus}\n";
                 $message .= "🆔 Video ID: *{$video->id}*\n";
                 $message .= "📅 Purchased: {$purchase->created_at->format('M d, Y')}\n";
-                $message .= "🔗 Use: `/getvideo {$video->id}`\n\n";
+                $message .= "🔗 Use: /getvideo {$video->id}\n\n";
             }
 
-            $message .= "💡 *Tip:* Use `/getvideo <ID>` to download any video instantly!";
+            $message .= "💡 *Tip:* Use /getvideo \\<ID\\> to download any video instantly!";
         }
 
         $this->sendTelegramMessage($chatId, $message);
