@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Purchase;
 use App\Models\Video;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class PurchaseController extends Controller
@@ -89,7 +90,7 @@ class PurchaseController extends Controller
                 'purchase_id' => $purchase->id,
                 'purchase_uuid' => $purchase->purchase_uuid,
                 'telegram_user_id' => $request->telegram_user_id,
-                'admin_user' => auth()->user()->id ?? 'unknown',
+                'admin_user' => Auth::user()->id ?? 'unknown',
             ]);
 
             return response()->json([
@@ -121,7 +122,7 @@ class PurchaseController extends Controller
         try {
             $purchase->markAsDelivered([
                 'manual_delivery' => true,
-                'admin_user' => auth()->user()->id ?? 'unknown',
+                'admin_user' => Auth::user()->id ?? 'unknown',
                 'notes' => $request->delivery_notes,
             ]);
 
@@ -211,6 +212,52 @@ class PurchaseController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update notes: ' . $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Update the telegram username for a purchase (admin access)
+     */
+    public function updateTelegramUsername(Request $request, Purchase $purchase)
+    {
+        $request->validate([
+            'telegram_username' => 'required|string|max:255|regex:/^[a-zA-Z0-9_]+$/',
+        ]);
+
+        // Clean the username (remove @ if present)
+        $username = ltrim($request->telegram_username, '@');
+        $oldUsername = $purchase->telegram_username;
+
+        try {
+            $purchase->update([
+                'telegram_username' => $username,
+            ]);
+
+            Log::info('Admin updated purchase telegram username', [
+                'purchase_id' => $purchase->id,
+                'purchase_uuid' => $purchase->purchase_uuid,
+                'old_username' => $oldUsername,
+                'new_username' => $username,
+                'admin_user' => auth()->user()->id ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'username' => $username,
+                'message' => 'Telegram username updated successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Admin failed to update telegram username', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage(),
+                'admin_user' => auth()->user()->id ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update username: ' . $e->getMessage()
             ]);
         }
     }

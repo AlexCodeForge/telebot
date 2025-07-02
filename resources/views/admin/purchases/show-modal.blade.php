@@ -46,7 +46,12 @@
         <table class="table table-sm">
             <tr>
                 <td><strong>Telegram Username:</strong></td>
-                <td>@{{ $purchase - > telegram_username }}</td>
+                <td>
+                    <span id="admin-telegram-username-display">@{{ $purchase->telegram_username }}</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="editAdminTelegramUsername('{{ $purchase->id }}', '{{ $purchase->telegram_username }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
             </tr>
             @if ($purchase->telegram_user_id)
                 <tr>

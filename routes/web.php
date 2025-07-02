@@ -16,6 +16,7 @@ Route::post('/payment/{video}/process', [PaymentController::class, 'process'])->
 Route::get('/payment/{video}/success', [PaymentController::class, 'success'])->name('payment.success');
 Route::get('/payment/{video}/cancel', [PaymentController::class, 'cancel'])->name('payment.cancel');
 Route::get('/purchase/{uuid}', [PaymentController::class, 'viewPurchase'])->name('purchase.view');
+Route::post('/purchase/{uuid}/update-username', [PaymentController::class, 'updateTelegramUsername'])->name('purchase.update-username');
 
 // Authentication routes
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -56,6 +57,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/purchases/{purchase}/mark-delivered', [\App\Http\Controllers\Admin\PurchaseController::class, 'markDelivered'])->name('admin.purchases.mark-delivered');
     Route::post('/admin/purchases/{purchase}/retry-delivery', [\App\Http\Controllers\Admin\PurchaseController::class, 'retryDelivery'])->name('admin.purchases.retry-delivery');
     Route::post('/admin/purchases/{purchase}/update-notes', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateNotes'])->name('admin.purchases.update-notes');
+    Route::post('/admin/purchases/{purchase}/update-username', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateTelegramUsername'])->name('admin.purchases.update-username');
 });
 
 // Telegram webhook (must be accessible without auth)

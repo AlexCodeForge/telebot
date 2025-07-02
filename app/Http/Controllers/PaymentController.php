@@ -164,6 +164,51 @@ class PaymentController extends Controller
     }
 
     /**
+     * Update the telegram username for a purchase
+     */
+    public function updateTelegramUsername(Request $request, $uuid)
+    {
+        $request->validate([
+            'telegram_username' => 'required|string|max:255|regex:/^[a-zA-Z0-9_]+$/',
+        ]);
+
+        $purchase = Purchase::where('purchase_uuid', $uuid)->firstOrFail();
+
+        // Clean the username (remove @ if present)
+        $username = ltrim($request->telegram_username, '@');
+
+        try {
+            $purchase->update([
+                'telegram_username' => $username,
+            ]);
+
+            Log::info('Customer updated telegram username', [
+                'purchase_uuid' => $purchase->purchase_uuid,
+                'old_username' => $purchase->getOriginal('telegram_username'),
+                'new_username' => $username,
+                'ip_address' => $request->ip(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'username' => $username,
+                'message' => 'Telegram username updated successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update telegram username', [
+                'purchase_uuid' => $purchase->purchase_uuid,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update username. Please try again.'
+            ]);
+        }
+    }
+
+    /**
      * Get or create user by Telegram username
      */
     private function getOrCreateUser($telegramUsername)

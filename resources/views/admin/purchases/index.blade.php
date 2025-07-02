@@ -178,7 +178,7 @@
                                             </td>
                                             <td>
                                                 <div>
-                                                    <strong>@{{ $purchase - > telegram_username }}</strong>
+                                                    <strong><span>@</span>{{ $purchase->telegram_username }}</strong>
                                                 </div>
                                                 @if ($purchase->customer_email)
                                                     <small class="text-muted">{{ $purchase->customer_email }}</small>
@@ -476,6 +476,55 @@
                     showAlert('error', 'An error occurred');
                 });
         });
+
+        // Edit telegram username functionality for admin
+        function editAdminTelegramUsername(purchaseId, currentUsername) {
+            const newUsername = prompt('Enter new Telegram username:', currentUsername);
+
+            if (newUsername === null || newUsername === currentUsername) {
+                return; // User cancelled or no change
+            }
+
+            if (!newUsername.trim()) {
+                showAlert('error', 'Username cannot be empty');
+                return;
+            }
+
+            // Clean username
+            const cleanUsername = newUsername.replace('@', '').trim();
+
+            fetch(`/admin/purchases/${purchaseId}/update-username`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    telegram_username: cleanUsername
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update both the display in modal and main table
+                    document.getElementById('admin-telegram-username-display').textContent = '@' + data.username;
+
+                    // Update main table if visible
+                    const tableCell = document.querySelector(`tr[data-purchase-id="${purchaseId}"] .telegram-username`);
+                    if (tableCell) {
+                        tableCell.textContent = '@' + data.username;
+                    }
+
+                    showAlert('success', data.message);
+                } else {
+                    showAlert('error', data.message || 'Failed to update username');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('error', 'An error occurred while updating the username');
+            });
+        }
 
         // Alert function
         function showAlert(type, message) {

@@ -82,7 +82,10 @@
                                             <li>Send the command <code>/start</code> to the bot</li>
                                             @if ($purchase->telegram_username)
                                                 <li>Make sure your Telegram username is:
-                                                    <strong>@{{ $purchase - > telegram_username }}</strong>
+                                                    <strong><span>@</span><span id="telegram-username-display">{{ $purchase->telegram_username }}</span></strong>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="editTelegramUsername()">
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
                                                 </li>
                                             @endif
                                         </ol>
@@ -150,6 +153,40 @@
             </div>
         </div>
     </div>
+
+    <!-- Edit Telegram Username Modal -->
+    <div class="modal fade" id="editUsernameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Telegram Username</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editUsernameForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="new_telegram_username" class="form-label">Telegram Username</label>
+                            <div class="input-group">
+                                <span class="input-group-text">@</span>
+                                <input type="text" class="form-control" id="new_telegram_username"
+                                       name="telegram_username" value="{{ $purchase->telegram_username }}" required>
+                            </div>
+                            <div class="form-text">Enter your correct Telegram username (without the @ symbol)</div>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Important:</strong> Make sure this matches exactly with your Telegram username.
+                            You'll need to contact our bot with this username to receive your video.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Username</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -162,5 +199,73 @@
                 window.location.reload();
             }, 30000);
         @endif
+
+        // Edit telegram username functionality
+        function editTelegramUsername() {
+            new bootstrap.Modal(document.getElementById('editUsernameModal')).show();
+        }
+
+        // Handle username update form submission
+        document.getElementById('editUsernameForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+
+            // Show loading state
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
+            submitButton.disabled = true;
+
+            fetch(`/purchase/{{ $purchase->purchase_uuid }}/update-username`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the display
+                    document.getElementById('telegram-username-display').textContent = data.username;
+
+                    // Show success message
+                    showAlert('success', 'Telegram username updated successfully!');
+
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('editUsernameModal')).hide();
+                } else {
+                    showAlert('error', data.message || 'Failed to update username');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('error', 'An error occurred while updating the username');
+            })
+            .finally(() => {
+                // Reset button state
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            });
+        });
+
+        // Alert function
+        function showAlert(type, message) {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+            const alertHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show position-fixed"
+                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+            setTimeout(() => {
+                const alert = document.querySelector('.alert');
+                if (alert) alert.remove();
+            }, 5000);
+        }
     </script>
 @endsection
