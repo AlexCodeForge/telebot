@@ -34,7 +34,7 @@
 
                             <!-- Token Status Summary -->
                             <div class="row g-3">
-                                <div class="col-md-4">
+            <div class="col-md-4">
                                     <div class="card h-100 {{ $telegramToken ? 'border-success' : 'border-danger' }}">
                                         <div class="card-body text-center">
                                             <i
@@ -42,10 +42,10 @@
                                             <h6 class="card-title">Telegram Bot</h6>
                                             <p class="card-text text-muted">
                                                 {{ $telegramToken ? 'Configured' : 'Not Configured' }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
                                     <div
                                         class="card h-100 {{ $stripeKey && $stripeSecret ? 'border-success' : 'border-danger' }}">
                                         <div class="card-body text-center">
@@ -54,10 +54,10 @@
                                             <h6 class="card-title">Stripe Payments</h6>
                                             <p class="card-text text-muted">
                                                 {{ $stripeKey && $stripeSecret ? 'Configured' : 'Not Configured' }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
                                     <div
                                         class="card h-100 {{ $stripeWebhookSecret ? 'border-success' : 'border-warning' }}">
                                         <div class="card-body text-center">
@@ -67,10 +67,10 @@
                                             <p class="card-text text-muted">
                                                 {{ $stripeWebhookSecret ? 'Secured' : 'Basic Mode' }}</p>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
                         {{-- Success/Error Messages --}}
                         @if (session('success'))
@@ -134,10 +134,10 @@
                                                 <i class="fas fa-save"></i> Set Sync User
                                             </button>
                                         </div>
-                                    </form>
+                </form>
                                 @endif
-                            </div>
-                        </div>
+            </div>
+        </div>
 
                         {{-- Webhook Management --}}
                         <div class="card mb-4">
@@ -148,18 +148,18 @@
                             </div>
                             <div class="card-body">
                                 <div class="row align-items-center">
-                                    <div class="col-md-8">
+                <div class="col-md-8">
                                         <div class="d-flex align-items-center">
                                             <span><strong>Webhook Status:</strong></span>
                                             <span id="webhook-status" class="ms-2 badge bg-secondary">Checking...</span>
-                                        </div>
+                    </div>
                                         <small class="text-muted">
                                             <strong>Active:</strong> Auto-capture videos when sent to bot<br>
                                             <strong>Disabled:</strong> Videos are not automatically captured (use manual
                                             import)
                                         </small>
-                                    </div>
-                                    <div class="col-md-4 text-end">
+                </div>
+                <div class="col-md-4 text-end">
                                         <div class="btn-group">
                                             <button type="button" class="btn btn-outline-warning btn-sm"
                                                 onclick="toggleWebhook('deactivate')" id="deactivate-webhook-btn">
@@ -233,8 +233,8 @@
                                             <label for="manual-price" class="form-label">Price ($)</label>
                                             <input type="number" id="manual-price" class="form-control"
                                                 placeholder="Price" value="4.99" step="0.01">
-                                        </div>
-                                    </div>
+                </div>
+            </div>
 
                                     <div class="row mt-3">
                                         <div class="col-md-8">
@@ -254,7 +254,7 @@
                         </div>
                         --}}
 
-                        {{-- Videos Table --}}
+            {{-- Videos Table --}}
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="mb-0">
@@ -263,34 +263,34 @@
                             </div>
                             <div class="card-body">
                                 @if (count($videos) > 0)
-                                    <div class="table-responsive">
-                                        <table class="table table-striped">
-                                            <thead>
-                                                <tr>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
                                                     <th>Title</th>
                                                     <th>Description</th>
-                                                    <th>Price</th>
+                            <th>Price</th>
                                                     <th>Thumbnail</th>
                                                     <th>File ID</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                                                 @foreach ($videos as $video)
-                                                    <tr>
-                                                        <td>
+                            <tr>
+                                <td>
                                                             <strong>{{ $video->title }}</strong><br>
                                                             <small class="text-muted">Created:
                                                                 {{ $video->created_at->format('M j, Y H:i') }}</small>
-                                                        </td>
-                                                        <td>
+                                </td>
+                                <td>
                                                             <div
                                                                 style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
                                                                 {{ $video->description ?? 'No description' }}
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            @if ($video->price > 0)
+                                    </div>
+                                </td>
+                                <td>
+                                    @if ($video->price > 0)
                                                                 <span
                                                                     class="badge bg-success">${{ number_format($video->price, 2) }}</span>
                                                             @else
@@ -310,16 +310,16 @@
                                                                         <span class="badge bg-success">Clear</span>
                                                                     @endif
                                                                 </div>
-                                                            @else
+                                    @else
                                                                 <span class="text-muted">No thumbnail</span>
-                                                            @endif
-                                                        </td>
+                                    @endif
+                                </td>
                                                         <td>
                                                             <code
                                                                 style="font-size: 10px;">{{ $video->telegram_file_id }}</code>
                                                         </td>
-                                                        <td>
-                                                            <div class="btn-group btn-group-sm">
+                                <td>
+                                    <div class="btn-group btn-group-sm">
                                                                 <button type="button" class="btn btn-outline-primary"
                                                                     onclick="editVideo({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }}, '{{ $video->getThumbnailUrl() }}', '{{ $video->thumbnail_url }}', {{ $video->show_blurred_thumbnail ? 'true' : 'false' }}, {{ $video->blur_intensity }}, {{ $video->allow_preview ? 'true' : 'false' }})">
                                                                     <i class="fas fa-edit"></i>
@@ -327,16 +327,16 @@
                                                                 @if ($syncUserTelegramId)
                                                                     <button type="button" class="btn btn-outline-success"
                                                                         onclick="testVideo({{ $video->id }})">
-                                                                        <i class="fas fa-paper-plane"></i>
-                                                                    </button>
-                                                                @endif
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </button>
+                                        @endif
                                                                 <button type="button" class="btn btn-outline-danger"
                                                                     onclick="deleteVideo({{ $video->id }})">
-                                                                    <i class="fas fa-trash"></i>
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                    </div>
+                                </td>
+                            </tr>
                                                 @endforeach
                                             </tbody>
                                         </table>
@@ -434,8 +434,8 @@
                                 placeholder="whsec_..."
                                 value="{{ $stripeWebhookSecret ? str_repeat('*', 30) . substr($stripeWebhookSecret, -10) : '' }}">
                             <div class="form-text">For secure webhook processing (recommended for production)</div>
-                        </div>
-                    </form>
+            </div>
+        </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

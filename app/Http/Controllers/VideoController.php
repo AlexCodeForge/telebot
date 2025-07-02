@@ -1046,6 +1046,8 @@ class VideoController extends Controller
         $message .= "/mypurchases - Show ALL purchased videos\n";
         $message .= "/getvideo <id> - Download specific video\n";
         $message .= "/help - Show this help\n\n";
+        $message .= "*🎁 Free Videos:*\n";
+        $message .= "Some videos are FREE! Use `/getvideo <ID>` with any free video ID to download instantly - no purchase required!\n\n";
         $message .= "*How to Purchase:*\n";
         $message .= "1. Visit our website video store\n";
         $message .= "2. Choose a video & enter your Telegram username\n";
@@ -1128,7 +1130,35 @@ class VideoController extends Controller
             return;
         }
 
-                // Find purchase by EITHER telegram_user_id OR username
+                        // First check if video exists and is free
+        $video = \App\Models\Video::find($videoId);
+
+        if (!$video) {
+            $this->sendTelegramMessage($chatId, "❌ *Video Not Found*\n\nVideo #{$videoId} doesn't exist.\n\nUse /mypurchases to see available videos.");
+            return;
+        }
+
+        // If video is FREE, allow anyone to download it
+        if ($video->isFree()) {
+            Log::info('Free video access granted', [
+                'telegram_user_id' => $telegramUserId,
+                'username' => $username,
+                'video_id' => $videoId,
+                'video_title' => $video->title
+            ]);
+
+            // Create a fake purchase object for delivery
+            $freeAccess = new \stdClass();
+            $freeAccess->video = $video;
+            $freeAccess->id = 'free-access-' . $videoId;
+            $freeAccess->video_id = $videoId;
+            $freeAccess->formatted_amount = 'FREE';
+
+            $this->deliverFreeVideoToCustomer($chatId, $freeAccess);
+            return;
+        }
+
+        // For paid videos, find purchase by EITHER telegram_user_id OR username
         $purchase = \App\Models\Purchase::where('purchase_status', 'completed')
             ->where('video_id', $videoId)
             ->where(function ($query) use ($telegramUserId, $username) {
@@ -1144,6 +1174,7 @@ class VideoController extends Controller
             'telegram_user_id' => $telegramUserId,
             'username' => $username,
             'video_id' => $videoId,
+            'video_price' => $video->price,
             'found_purchase' => $purchase ? true : false,
             'purchase_id' => $purchase ? $purchase->id : null,
             'purchase_verification' => $purchase ? $purchase->verification_status : null,
@@ -1151,7 +1182,7 @@ class VideoController extends Controller
         ]);
 
         if (!$purchase) {
-            $this->sendTelegramMessage($chatId, "❌ *Access Denied*\n\nYou haven't purchased video #{$videoId}.\n\nUse /mypurchases to see available videos or /start to check for new purchases.");
+            $this->sendTelegramMessage($chatId, "❌ *Access Denied*\n\nYou haven't purchased video #{$videoId} ({$video->formatted_price}).\n\nUse /mypurchases to see available videos or /start to check for new purchases.");
             return;
         }
 
@@ -1169,6 +1200,59 @@ class VideoController extends Controller
 
         // Deliver the video
         $this->deliverVideoToCustomer($chatId, $purchase);
+    }
+
+    /**
+     * Deliver free video to customer
+     */
+    private function deliverFreeVideoToCustomer($chatId, $freeAccess)
+    {
+        $video = $freeAccess->video;
+
+        try {
+            if ($video->telegram_file_id) {
+                // Send video using file_id
+                $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
+                $url = "https://api.telegram.org/bot{$botToken}/sendVideo";
+
+                $data = [
+                    'chat_id' => $chatId,
+                    'video' => $video->telegram_file_id,
+                    'caption' => "🎬 *{$video->title}* (FREE)\n\n" .
+                        "✅ Enjoy this free video!\n" .
+                        "🔗 Visit our store for more amazing content!",
+                    'parse_mode' => 'Markdown'
+                ];
+
+                $response = Http::timeout(30)->post($url, $data);
+
+                if ($response->successful()) {
+                    Log::info('Free video delivered successfully', [
+                        'video_id' => $video->id,
+                        'chat_id' => $chatId,
+                        'video_title' => $video->title
+                    ]);
+                } else {
+                    Log::error('Failed to deliver free video', [
+                        'video_id' => $video->id,
+                        'chat_id' => $chatId,
+                        'response' => $response->body()
+                    ]);
+
+                    $this->sendTelegramMessage($chatId, "❌ *Delivery Error*\n\nSorry, there was an issue delivering the free video. Please try again or contact support.");
+                }
+            } else {
+                $this->sendTelegramMessage($chatId, "❌ *Video Unavailable*\n\nThis free video is not ready for delivery yet. Please try again later.");
+            }
+        } catch (\Exception $e) {
+            Log::error('Exception during free video delivery', [
+                'video_id' => $video->id,
+                'chat_id' => $chatId,
+                'error' => $e->getMessage()
+            ]);
+
+            $this->sendTelegramMessage($chatId, "❌ *Delivery Error*\n\nSorry, there was an issue delivering the free video. Please try again or contact support.");
+        }
     }
 
     /**

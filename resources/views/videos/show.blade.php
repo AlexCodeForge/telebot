@@ -10,9 +10,8 @@
                     @if ($video->hasThumbnail())
                         <div class="position-relative" style="height: 300px;">
                             <img src="{{ $video->getThumbnailUrl() }}" class="card-img-top" alt="Video thumbnail"
-                                style="height: 300px; object-fit: cover; {{ $video->shouldShowBlurred() ? $video->getBlurredThumbnailStyle() : '' }}"
+                                style="height: 300px; object-fit: cover; {{ $video->shouldShowBlurred() ? $video->getBlurredThumbnailStyle() : '' }}{{ $video->allow_preview ? ' cursor: pointer;' : '' }}"
                                 @if ($video->allow_preview) onclick="toggleThumbnailBlur(this, {{ $video->blur_intensity }})"
-                                    style="cursor: pointer;"
                                     title="Click to preview" @endif>
                             @if ($video->shouldShowBlurred())
                                 <div class="position-absolute top-50 start-50 translate-middle">
@@ -63,12 +62,25 @@
                         <div class="text-center mb-4">
                             @if ($video->telegram_file_id)
                                 @if ($video->isFree())
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-gift"></i> This video is free! Contact us to get access.
+                                    <div class="alert alert-success">
+                                        <h5><i class="fas fa-gift"></i> This video is FREE!</h5>
+                                        <p class="mb-2">🤖 <strong>Get instant access via our Telegram bot:</strong></p>
+                                        <ol class="mb-3">
+                                            <li>Start a conversation with our bot: <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-sm btn-primary">@videotestpowerbot</a></li>
+                                            <li>Send the command: <code>/getvideo {{ $video->id }}</code></li>
+                                            <li>Get your free video instantly!</li>
+                                        </ol>
+                                        <p class="mb-0"><small class="text-muted">No purchase required - available to all users!</small></p>
                                     </div>
-                                    <a href="{{ route('videos.index') }}" class="btn btn-outline-primary">
-                                        <i class="fas fa-arrow-left"></i> Back to Store
-                                    </a>
+                                    <div class="text-center">
+                                        <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-success btn-lg mb-3">
+                                            <i class="fab fa-telegram"></i> Get Free Video Now
+                                        </a>
+                                        <br>
+                                        <a href="{{ route('videos.index') }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-arrow-left"></i> Back to Store
+                                        </a>
+                                    </div>
                                 @else
                                     <a href="{{ route('payment.form', $video) }}" class="btn btn-success btn-lg mb-3">
                                         <i class="fas fa-shopping-cart"></i> Purchase Now
