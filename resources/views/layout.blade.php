@@ -57,7 +57,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="https://t.me/videotestpowerbot" target="_blank">
+                        <a class="nav-link" href="{{ $bot['url'] }}" target="_blank">
                             <i class="fab fa-telegram"></i> Start Bot Chat
                         </a>
                     </li>

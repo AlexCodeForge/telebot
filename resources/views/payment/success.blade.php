@@ -58,7 +58,7 @@
 
                     <!-- Bot Link -->
                     <div class="mb-4">
-                        <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-success btn-lg">
+                        <a href="{{ $bot['url'] }}" target="_blank" class="btn btn-success btn-lg">
                             <i class="fab fa-telegram"></i> Start Chat with Bot
                         </a>
                     </div>

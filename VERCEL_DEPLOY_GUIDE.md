@@ -116,6 +116,17 @@ PASSWORD = your-password-from-step-3.2
 DATABASE = postgres
 ```
 
+this worked for me
+
+APP_KEY=base64:XjCsgFThuEHXtKttIjJrTkhkQ0I4lXIKAmUfO+hPqNY=
+DB_CONNECTION=pgsql
+DB_HOST=aws-0-us-east-2.pooler.supabase.com
+DB_PORT=6543
+DB_DATABASE=postgres
+DB_USERNAME=postgres.shnjjgyewqjkaejstmeq
+DB_PASSWORD=npg_Gk4NScgxV0BQ
+
+
 **Save these** - needed in Step 5!
 
 ---
@@ -405,3 +416,10 @@ Verify everything works:
 **This guide works 100% when followed exactly.** 🎯
 
 Each step has been tested multiple times. If you encounter issues, double-check you followed each step precisely, especially the Transaction Pooler setup in Step 3.3.
+
+Command to delete database if required
+
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT USAGE ON SCHEMA public TO public;
+GRANT CREATE ON SCHEMA public TO public;

@@ -97,7 +97,7 @@
 
                                         <!-- Bot Conversation Button -->
                                         <div class="mt-3 text-center">
-                                            <a href="https://t.me/videotestpowerbot?start=getvideo_{{ $purchase->video_id }}" target="_blank" class="btn btn-success btn-lg">
+                                            <a href="{{ $bot['url'] }}?start=getvideo_{{ $purchase->video_id }}" target="_blank" class="btn btn-success btn-lg">
                                                 <i class="fab fa-telegram me-2"></i>Get Your Video Now
                                             </a>
                                             <p class="text-muted mt-2 mb-0">
@@ -119,7 +119,7 @@
 
                                             <!-- Bot Access Button -->
                                             <div class="mt-3">
-                                                <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-success">
+                                                <a href="{{ $bot['url'] }}" target="_blank" class="btn btn-success">
                                                     <i class="fab fa-telegram me-2"></i>Open Bot Chat
                                                 </a>
                                                 <p class="text-muted mt-2 mb-0">

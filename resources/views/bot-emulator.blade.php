@@ -20,7 +20,7 @@
                 <h3 class="font-semibold text-blue-800 mb-2">📋 Test Configuration:</h3>
                 <ul class="text-blue-700 text-sm space-y-1">
                     <li><strong>Test User:</strong> @Salesmanp2p (ID: 5928450281)</li>
-                    <li><strong>Bot:</strong> @videotestpowerbot</li>
+                    <li><strong>Bot:</strong> {{ $bot['username'] }}</li>
                     <li><strong>Test Video:</strong> ID 11 - "Science Video - Research Lab"</li>
                 </ul>
             </div>
@@ -129,7 +129,7 @@
                     <div class="text-green-600 font-semibold">✅ Command sent: ${data.command}</div>
                     <div class="text-gray-700">${data.message}</div>
                     <div class="text-xs text-gray-500 mt-2">
-                        Check your Telegram (@videotestpowerbot) for the actual bot response.
+                        Check your Telegram ({{ $bot['username'] }}) for the actual bot response.
                     </div>
                 </div>
             `;

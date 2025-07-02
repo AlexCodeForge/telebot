@@ -64,7 +64,7 @@
                             <strong>How it works:</strong>
                             <ol class="mb-0 mt-2">
                                 <li>Complete payment using Stripe (secure)</li>
-                                <li>Start a chat with our bot: <a href="https://t.me/videotestpowerbot" target="_blank">@videotestpowerbot</a></li>
+                                <li>Start a chat with our bot: <a href="{{ $bot['url'] }}" target="_blank">{{ $bot['username'] }}</a></li>
                                 <li>Your video will be delivered automatically!</li>
                             </ol>
                         </div>

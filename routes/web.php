@@ -22,15 +22,18 @@ Route::get('/payment/{video}/cancel', [PaymentController::class, 'cancel'])->nam
 Route::get('/purchase/{uuid}', [PaymentController::class, 'viewPurchase'])->name('purchase.view');
 Route::post('/purchase/{uuid}/update-username', [PaymentController::class, 'updateTelegramUsername'])->name('purchase.update-username');
 
-// Authentication routes
+// Authentication routes (profile management)
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', function () {
-        return redirect()->route('admin.videos.manage');
-    })->name('dashboard');
-
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// Admin-only routes
+Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+    Route::get('/dashboard', function () {
+        return redirect()->route('admin.videos.manage');
+    })->name('dashboard');
 
     // Admin video management routes
     Route::get('/admin/videos', [VideoController::class, 'manage'])->name('admin.videos.manage');
@@ -131,6 +134,7 @@ Route::get('/run-migrations-setup-once', function () {
             'email' => 'admin@telebot.local',
             'password' => Hash::make('admin123456'),
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
 
         return response()->json([

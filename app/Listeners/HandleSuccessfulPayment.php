@@ -6,6 +6,8 @@ use App\Models\Purchase;
 use App\Models\Video;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Laravel\Cashier\Events\WebhookReceived;
 use Laravel\Cashier\Cashier;
 use Telegram\Bot\Laravel\Facades\Telegram;
@@ -81,10 +83,13 @@ class HandleSuccessfulPayment
         }
 
         // Create new user with minimal info (Telegram User ID will be linked later)
+        // NOTE: Regular users cannot login to admin panel - they only exist for purchase tracking
         return User::create([
             'name' => $telegramUsername,
             'email' => $telegramUsername . '@telegram.placeholder',
             'telegram_username' => $telegramUsername,
+            'password' => Hash::make(Str::random(32)), // Random secure password (not admin pattern)
+            'is_admin' => false, // Explicitly set as non-admin
             // telegram_user_id will be set when user interacts with bot
         ]);
     }
@@ -96,7 +101,8 @@ class HandleSuccessfulPayment
             $message = "🎉 *Payment Successful!*\n\n";
             $message .= "✅ Your purchase of *{$video->title}* has been confirmed!\n\n";
             $message .= "🤖 *Next Steps:*\n";
-            $message .= "1. Start a chat with me: @videotestpowerbot\n";
+            $botService = app(\App\Services\TelegramBotService::class);
+            $message .= "1. Start a chat with me: " . $botService->getBotUsername() . "\n";
             $message .= "2. Type /start to activate your purchase\n";
             $message .= "3. I'll deliver your video and set up unlimited access!\n\n";
             $message .= "💡 After activation, use /getvideo {$video->id} anytime to get your video.";
@@ -162,7 +168,8 @@ class HandleSuccessfulPayment
             $confirmationMessage .= "🆔 **Video ID:** {$video->id}\n\n";
 
             $confirmationMessage .= "🤖 **How to access your video:**\n";
-            $confirmationMessage .= "1. Start a chat with our bot: @videotestpowerbot\n";
+            $botService = app(\App\Services\TelegramBotService::class);
+            $confirmationMessage .= "1. Start a chat with our bot: " . $botService->getBotUsername() . "\n";
             $confirmationMessage .= "2. Use command: `/getvideo {$video->id}`\n";
             $confirmationMessage .= "3. Enjoy unlimited access to your video!\n\n";
 
