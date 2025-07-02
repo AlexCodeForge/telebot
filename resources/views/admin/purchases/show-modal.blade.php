@@ -47,7 +47,7 @@
             <tr>
                 <td><strong>Telegram Username:</strong></td>
                 <td>
-                    <span id="admin-telegram-username-display">@{{ $purchase->telegram_username }}</span>
+                    <span id="admin-telegram-username-display"><span>@</span>{{ $purchase->telegram_username }}</span>
                     <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="editAdminTelegramUsername('{{ $purchase->id }}', '{{ $purchase->telegram_username }}')">
                         <i class="fas fa-edit"></i>
                     </button>
