@@ -920,64 +920,119 @@ class VideoController extends Controller
         // Update/create user info
         $this->updateUserInfo($telegramUserId, $username, $firstName);
 
-        // Check for pending purchases to verify
-        $latestPendingPurchase = null;
+        Log::info('Customer /start command', [
+            'telegram_user_id' => $telegramUserId,
+            'username' => $username,
+            'chat_id' => $chatId
+        ]);
+
+        // Find ALL purchases for this user (by username OR telegram_user_id) that need processing
+        $userPurchases = collect();
+
         if ($username) {
-            $latestPendingPurchase = \App\Models\Purchase::where('telegram_username', $username)
-                ->where('verification_status', 'pending')
+            // Get purchases by username
+            $purchasesByUsername = \App\Models\Purchase::where('telegram_username', $username)
                 ->where('purchase_status', 'completed')
                 ->with('video')
-                ->orderBy('created_at', 'desc')
-                ->first();
+                ->get();
+            $userPurchases = $userPurchases->merge($purchasesByUsername);
         }
 
-        if ($latestPendingPurchase) {
-            // Auto-verify and deliver
+        // Get purchases by telegram_user_id (if they exist)
+        $purchasesByTelegramId = \App\Models\Purchase::where('telegram_user_id', $telegramUserId)
+            ->where('purchase_status', 'completed')
+            ->with('video')
+            ->get();
+        $userPurchases = $userPurchases->merge($purchasesByTelegramId);
+
+        // Remove duplicates by purchase ID
+        $userPurchases = $userPurchases->unique('id');
+
+        Log::info('Found user purchases', [
+            'telegram_user_id' => $telegramUserId,
+            'username' => $username,
+            'total_purchases' => $userPurchases->count(),
+            'purchase_ids' => $userPurchases->pluck('id')->toArray()
+        ]);
+
+        if ($userPurchases->isEmpty()) {
+            $message = "👋 *Welcome to Video Store Bot!*\n\n";
+            $message .= "❌ No purchases found for your account.\n\n";
+            $message .= "🛒 *To purchase videos:*\n";
+            $message .= "1. Visit our website\n";
+            if ($username) {
+                $message .= "2. Purchase with username: @{$username}\n";
+            }
+            $message .= "3. Return here and use /start to access your videos\n\n";
+            $message .= "💡 Type /help for more commands.";
+
+            $this->sendTelegramMessage($chatId, $message);
+            return;
+        }
+
+        // Process and deliver all user's videos
+        $deliveredCount = 0;
+        $alreadyDeliveredCount = 0;
+        $deliveredVideos = collect();
+
+        foreach ($userPurchases as $purchase) {
             try {
-                $latestPendingPurchase->verifyTelegramUser($telegramUserId);
-                $this->deliverVideoToCustomer($chatId, $latestPendingPurchase);
+                // Link telegram_user_id if not already linked
+                if (!$purchase->telegram_user_id) {
+                    $purchase->update([
+                        'telegram_user_id' => $telegramUserId,
+                        'verification_status' => 'verified'
+                    ]);
+                    Log::info('Linked telegram_user_id to purchase', [
+                        'purchase_id' => $purchase->id,
+                        'telegram_user_id' => $telegramUserId
+                    ]);
+                }
 
-                Log::info('Purchase verified and delivered via /start', [
-                    'purchase_id' => $latestPendingPurchase->id,
-                    'telegram_user_id' => $telegramUserId,
-                    'telegram_username' => $username,
-                ]);
-
-                $message = "🎉 *Welcome to Video Store Bot!*\n\n";
-                $message .= "✅ Your purchase has been verified and delivered!\n\n";
-                $message .= "📹 *{$latestPendingPurchase->video->title}* (ID: {$latestPendingPurchase->video_id})\n";
-                $message .= "💰 {$latestPendingPurchase->formatted_amount} - ✅ Delivered!\n\n";
-                $message .= "🤖 *Available Commands:*\n";
-                $message .= "/mypurchases - See ALL your videos\n";
-                $message .= "/getvideo <id> - Get any video instantly\n";
-                $message .= "/help - Get help\n\n";
-                $message .= "💡 Save this chat - you can download your videos anytime!";
-
-                $this->sendTelegramMessage($chatId, $message);
+                // Deliver video if not already delivered
+                if ($purchase->delivery_status !== 'delivered') {
+                    $this->deliverVideoToCustomer($chatId, $purchase);
+                    $deliveredCount++;
+                    $deliveredVideos->push($purchase);
+                } else {
+                    $alreadyDeliveredCount++;
+                    $deliveredVideos->push($purchase);
+                }
             } catch (\Exception $e) {
-                Log::error('Failed to verify/deliver purchase', [
-                    'purchase_id' => $latestPendingPurchase->id,
+                Log::error('Error processing purchase in /start', [
+                    'purchase_id' => $purchase->id,
                     'error' => $e->getMessage()
                 ]);
+            }
+        }
 
-                $this->sendTelegramMessage($chatId, "🎉 Welcome! I found your purchase but there was an issue with delivery. Our team has been notified. Please try /getvideo {$latestPendingPurchase->video_id} in a few minutes.");
+        // Send summary message
+        if ($deliveredCount > 0) {
+            $message = "🎉 *Welcome to Video Store Bot!*\n\n";
+            $message .= "✅ Found and delivered {$deliveredCount} video(s)!\n\n";
+
+            foreach ($deliveredVideos as $purchase) {
+                $status = $purchase->delivery_status === 'delivered' ? '✅' : '🆕';
+                $message .= "📹 *{$purchase->video->title}* {$status}\n";
+                $message .= "🆔 Video ID: {$purchase->video_id} | Price: {$purchase->formatted_amount}\n\n";
             }
         } else {
-            // No pending purchases - regular welcome
-                         $this->sendTelegramMessage($chatId,
-                 "🎬 *Welcome to Video Store Bot!*\n\n" .
-                 "I help deliver your purchased videos instantly!\n\n" .
-                 "🛒 *How it works:*\n" .
-                 "1. Purchase videos from our website\n" .
-                 "2. Use /start here to verify & get videos\n" .
-                 "3. Use /getvideo <id> anytime for re-download\n\n" .
-                 "📋 *Commands:*\n" .
-                 "/mypurchases - See your purchased videos\n" .
-                 "/getvideo <id> - Download specific video\n" .
-                 "/help - Get detailed help\n\n" .
-                 "🔗 Visit our store to purchase amazing videos!"
-             );
+            $message = "👋 *Welcome back to Video Store Bot!*\n\n";
+            $message .= "📋 You have {$alreadyDeliveredCount} video(s) in your library.\n\n";
+
+            foreach ($deliveredVideos as $purchase) {
+                $message .= "📹 *{$purchase->video->title}* ✅\n";
+                $message .= "🆔 Video ID: {$purchase->video_id} | Price: {$purchase->formatted_amount}\n\n";
+            }
         }
+
+        $message .= "🤖 *Available Commands:*\n";
+        $message .= "/mypurchases - See ALL your videos\n";
+        $message .= "/getvideo <id> - Get any video instantly\n";
+        $message .= "/help - Get help\n\n";
+        $message .= "💡 Save this chat - you can download your videos anytime!";
+
+        $this->sendTelegramMessage($chatId, $message);
     }
 
     /**
@@ -1016,25 +1071,30 @@ class VideoController extends Controller
             return;
         }
 
-        $verifiedPurchases = \App\Models\Purchase::where('telegram_user_id', $telegramUserId)
-            ->where('verification_status', 'verified')
-            ->where('purchase_status', 'completed')
+        // Find purchases by EITHER telegram_user_id OR username
+        $userPurchases = \App\Models\Purchase::where('purchase_status', 'completed')
+            ->where(function ($query) use ($telegramUserId, $username) {
+                $query->where('telegram_user_id', $telegramUserId);
+                if ($username) {
+                    $query->orWhere('telegram_username', $username);
+                }
+            })
             ->with('video')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        if ($verifiedPurchases->isEmpty()) {
+        if ($userPurchases->isEmpty()) {
             $message = "📋 *Your Purchased Videos*\n\n";
-            $message .= "❌ No verified purchases found.\n\n";
+            $message .= "❌ No purchases found.\n\n";
             $message .= "🛒 *To purchase videos:*\n";
             $message .= "1. Visit our website\n";
             $message .= "2. Purchase with username: @{$username}\n";
             $message .= "3. Return here and use /start to verify\n\n";
             $message .= "💡 Make sure you use the exact username: *{$username}*";
         } else {
-            $message = "📋 *Your Purchased Videos* ({$verifiedPurchases->count()})\n\n";
+            $message = "📋 *Your Purchased Videos* ({$userPurchases->count()})\n\n";
 
-            foreach ($verifiedPurchases as $purchase) {
+            foreach ($userPurchases as $purchase) {
                 $video = $purchase->video;
                 $deliveryStatus = $purchase->delivery_status === 'delivered' ? '✅' : '⏳';
 
@@ -1068,61 +1128,43 @@ class VideoController extends Controller
             return;
         }
 
-        // Find verified purchase
-        $purchase = \App\Models\Purchase::where('telegram_user_id', $telegramUserId)
+                // Find purchase by EITHER telegram_user_id OR username
+        $purchase = \App\Models\Purchase::where('purchase_status', 'completed')
             ->where('video_id', $videoId)
-            ->where('verification_status', 'verified')
-            ->where('purchase_status', 'completed')
+            ->where(function ($query) use ($telegramUserId, $username) {
+                $query->where('telegram_user_id', $telegramUserId);
+                if ($username) {
+                    $query->orWhere('telegram_username', $username);
+                }
+            })
             ->with('video')
             ->first();
 
         Log::info('Purchase lookup result', [
             'telegram_user_id' => $telegramUserId,
+            'username' => $username,
             'video_id' => $videoId,
-            'found_verified_purchase' => $purchase ? true : false,
-            'purchase_id' => $purchase ? $purchase->id : null
+            'found_purchase' => $purchase ? true : false,
+            'purchase_id' => $purchase ? $purchase->id : null,
+            'purchase_verification' => $purchase ? $purchase->verification_status : null,
+            'purchase_delivery' => $purchase ? $purchase->delivery_status : null
         ]);
 
         if (!$purchase) {
-            // Check for pending purchase
-            $pendingPurchase = \App\Models\Purchase::where('telegram_username', $username)
-                ->where('video_id', $videoId)
-                ->where('verification_status', 'pending')
-                ->where('purchase_status', 'completed')
-                ->first();
-
-            Log::info('Pending purchase lookup', [
-                'username' => $username,
-                'video_id' => $videoId,
-                'found_pending_purchase' => $pendingPurchase ? true : false,
-                'pending_purchase_id' => $pendingPurchase ? $pendingPurchase->id : null
-            ]);
-
-            if ($pendingPurchase) {
-                $this->sendTelegramMessage($chatId, "⏳ *Purchase Pending Verification*\n\nVideo #{$videoId} needs verification.\n\nUse /start to verify purchases!");
-            } else {
-                // Let's also check if there are ANY purchases for this user
-                $anyPurchases = \App\Models\Purchase::where('telegram_username', $username)
-                    ->where('purchase_status', 'completed')
-                    ->get();
-
-                Log::info('All user purchases check', [
-                    'username' => $username,
-                    'total_purchases' => $anyPurchases->count(),
-                    'purchases' => $anyPurchases->map(function($p) {
-                        return [
-                            'id' => $p->id,
-                            'video_id' => $p->video_id,
-                            'verification_status' => $p->verification_status,
-                            'delivery_status' => $p->delivery_status,
-                            'telegram_user_id' => $p->telegram_user_id
-                        ];
-                    })
-                ]);
-
-                $this->sendTelegramMessage($chatId, "❌ *Access Denied*\n\nYou haven't purchased video #{$videoId}.\n\nUse /mypurchases to see available videos.");
-            }
+            $this->sendTelegramMessage($chatId, "❌ *Access Denied*\n\nYou haven't purchased video #{$videoId}.\n\nUse /mypurchases to see available videos or /start to check for new purchases.");
             return;
+        }
+
+        // Auto-link telegram_user_id if not already linked
+        if (!$purchase->telegram_user_id) {
+            $purchase->update([
+                'telegram_user_id' => $telegramUserId,
+                'verification_status' => 'verified'
+            ]);
+            Log::info('Auto-linked telegram_user_id during getvideo', [
+                'purchase_id' => $purchase->id,
+                'telegram_user_id' => $telegramUserId
+            ]);
         }
 
         // Deliver the video
