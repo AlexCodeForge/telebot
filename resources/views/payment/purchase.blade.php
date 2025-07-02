@@ -97,9 +97,15 @@
 
                                         <!-- Bot Conversation Button -->
                                         <div class="mt-3 text-center">
-                                            <a href="{{ $bot['url'] }}?start=getvideo_{{ $purchase->video_id }}" target="_blank" class="btn btn-success btn-lg">
-                                                <i class="fab fa-telegram me-2"></i>Get Your Video Now
-                                            </a>
+                                            @if($bot['is_configured'])
+                                                <a href="{{ $bot['url'] }}?start=getvideo_{{ $purchase->video_id }}" target="_blank" class="btn btn-success btn-lg">
+                                                    <i class="fab fa-telegram me-2"></i>Get Your Video Now
+                                                </a>
+                                            @else
+                                                <a href="{{ route('login') }}" class="btn btn-warning btn-lg">
+                                                    <i class="fas fa-cog me-2"></i>Bot Setup Required
+                                                </a>
+                                            @endif
                                             <p class="text-muted mt-2 mb-0">
                                                 <small><i class="fas fa-info-circle me-1"></i>Click this button to get your video via `/getvideo {{ $purchase->video_id }}` command!</small>
                                             </p>
@@ -119,9 +125,15 @@
 
                                             <!-- Bot Access Button -->
                                             <div class="mt-3">
-                                                <a href="{{ $bot['url'] }}" target="_blank" class="btn btn-success">
-                                                    <i class="fab fa-telegram me-2"></i>Open Bot Chat
-                                                </a>
+                                                @if($bot['is_configured'])
+                                                    <a href="{{ $bot['url'] }}" target="_blank" class="btn btn-success">
+                                                        <i class="fab fa-telegram me-2"></i>Open Bot Chat
+                                                    </a>
+                                                @else
+                                                    <a href="{{ route('login') }}" class="btn btn-warning">
+                                                        <i class="fas fa-cog me-2"></i>Setup Required
+                                                    </a>
+                                                @endif
                                                 <p class="text-muted mt-2 mb-0">
                                                     <small><i class="fas fa-video me-1"></i>Use <code>/getvideo {{ $purchase->video_id }}</code> anytime to get your video again!</small>
                                                 </p>

@@ -37,9 +37,9 @@ return new class extends Migration
       // Remove old file path fields if they exist (or make them nullable)
       // We'll keep telegram_file_id as it's still useful for direct file references
 
-      // Add indexes for better performance
-      $table->index(['telegram_group_chat_id', 'telegram_message_id']);
-      $table->index('file_unique_id');
+                  // Indexes already exist - commenting out to avoid duplicate error
+      // $table->index(['telegram_group_chat_id', 'telegram_message_id']);
+      // $table->index('file_unique_id');
     });
   }
 

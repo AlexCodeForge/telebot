@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Video;
 use App\Models\Setting;
+use App\Models\TelegramBot;
+use App\Services\TelegramBotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -34,6 +36,11 @@ class VideoController extends Controller
      */
     public function manage()
     {
+        // Simple admin check
+        if ($redirect = $this->requireAdmin()) {
+            return $redirect;
+        }
+
         try {
             $videos = Video::orderBy('created_at', 'desc')->paginate(15);
 
@@ -354,8 +361,17 @@ class VideoController extends Controller
                     if (!preg_match('/^\d+:[A-Za-z0-9_-]+$/', $token)) {
                         $errors[] = 'Invalid Telegram token format. Should be: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz';
                     } else {
-                        Setting::set('telegram_bot_token', $token);
-                        $savedTokens[] = 'Telegram Bot Token';
+                        try {
+                            // Create/update bot in database with fetched info from Telegram API
+                            $botService = new TelegramBotService();
+                            $bot = $botService->setupBotFromToken($token);
+
+                            // Also save to settings for backward compatibility
+                            Setting::set('telegram_bot_token', $token);
+                            $savedTokens[] = "Telegram Bot Token (@{$bot->username})";
+                        } catch (\Exception $e) {
+                            $errors[] = 'Failed to setup bot: ' . $e->getMessage();
+                        }
                     }
                 }
             }

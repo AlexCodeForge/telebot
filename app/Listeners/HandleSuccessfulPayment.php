@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Models\Purchase;
 use App\Models\Video;
 use App\Models\User;
+use App\Models\TelegramBot;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -101,8 +102,9 @@ class HandleSuccessfulPayment
             $message = "🎉 *Payment Successful!*\n\n";
             $message .= "✅ Your purchase of *{$video->title}* has been confirmed!\n\n";
             $message .= "🤖 *Next Steps:*\n";
-            $botService = app(\App\Services\TelegramBotService::class);
-            $message .= "1. Start a chat with me: " . $botService->getBotUsername() . "\n";
+            $bot = TelegramBot::getActiveBot();
+            $botUsername = $bot ? $bot->getUsernameWithAt() : '@videotestpowerbot';
+            $message .= "1. Start a chat with me: " . $botUsername . "\n";
             $message .= "2. Type /start to activate your purchase\n";
             $message .= "3. I'll deliver your video and set up unlimited access!\n\n";
             $message .= "💡 After activation, use /getvideo {$video->id} anytime to get your video.";
@@ -168,8 +170,9 @@ class HandleSuccessfulPayment
             $confirmationMessage .= "🆔 **Video ID:** {$video->id}\n\n";
 
             $confirmationMessage .= "🤖 **How to access your video:**\n";
-            $botService = app(\App\Services\TelegramBotService::class);
-            $confirmationMessage .= "1. Start a chat with our bot: " . $botService->getBotUsername() . "\n";
+            $bot = TelegramBot::getActiveBot();
+            $botUsername = $bot ? $bot->getUsernameWithAt() : '@videotestpowerbot';
+            $confirmationMessage .= "1. Start a chat with our bot: " . $botUsername . "\n";
             $confirmationMessage .= "2. Use command: `/getvideo {$video->id}`\n";
             $confirmationMessage .= "3. Enjoy unlimited access to your video!\n\n";
 

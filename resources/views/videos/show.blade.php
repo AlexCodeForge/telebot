@@ -66,18 +66,30 @@
                                         <h5><i class="fas fa-gift"></i> This video is FREE!</h5>
                                         <p class="mb-3">🤖 <strong>Get instant access via our Telegram bot</strong></p>
 
-                                        <a href="https://t.me/videotestpowerbot?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-success btn-lg mb-3">
-                                            <i class="fab fa-telegram me-2"></i>Get Free Video Now
-                                        </a>
+                                        @if($bot['is_configured'])
+                                            <a href="{{ $bot['url'] }}?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-success btn-lg mb-3">
+                                                <i class="fab fa-telegram me-2"></i>Get Free Video Now
+                                            </a>
 
-                                        <div class="mt-3">
-                                            <small class="text-muted">
-                                                <strong>Manual Steps:</strong><br>
-                                                1. Start chat with <a href="https://t.me/videotestpowerbot" target="_blank">@videotestpowerbot</a><br>
-                                                2. Send command: <code>/getvideo {{ $video->id }}</code><br>
-                                                3. Get your video instantly!
-                                            </small>
-                                        </div>
+                                            <div class="mt-3">
+                                                <small class="text-muted">
+                                                    <strong>Manual Steps:</strong><br>
+                                                    1. Start chat with <a href="{{ $bot['url'] }}" target="_blank">{{ $bot['username'] }}</a><br>
+                                                    2. Send command: <code>/getvideo {{ $video->id }}</code><br>
+                                                    3. Get your video instantly!
+                                                </small>
+                                            </div>
+                                        @else
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-cog"></i> <strong>Bot Setup Required</strong><br>
+                                                The admin needs to configure the Telegram bot before videos can be delivered.
+                                                <div class="mt-2">
+                                                    <a href="{{ route('login') }}" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i> Admin Setup
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 @else
                                     <a href="{{ route('payment.form', $video) }}" class="btn btn-success btn-lg mb-3">

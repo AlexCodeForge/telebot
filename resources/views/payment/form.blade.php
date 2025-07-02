@@ -59,21 +59,38 @@
                             </div>
                         </div>
 
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>How it works:</strong>
-                            <ol class="mb-0 mt-2">
-                                <li>Complete payment using Stripe (secure)</li>
-                                <li>Start a chat with our bot: <a href="{{ $bot['url'] }}" target="_blank">{{ $bot['username'] }}</a></li>
-                                <li>Your video will be delivered automatically!</li>
-                            </ol>
-                        </div>
+                        @if($bot['is_configured'])
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>How it works:</strong>
+                                <ol class="mb-0 mt-2">
+                                    <li>Complete payment using Stripe (secure)</li>
+                                    <li>Start a chat with our bot: <a href="{{ $bot['url'] }}" target="_blank">{{ $bot['username'] }}</a></li>
+                                    <li>Your video will be delivered automatically!</li>
+                                </ol>
+                            </div>
+                        @else
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Setup Required:</strong>
+                                <p class="mb-2 mt-2">The Telegram bot is not configured yet. Please contact the administrator to complete the setup before making purchases.</p>
+                                <a href="{{ route('login') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-cog"></i> Admin Setup
+                                </a>
+                            </div>
+                        @endif
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg">
-                                <i class="fas fa-credit-card"></i>
-                                Pay ${{ number_format($video->price, 2) }} with Stripe
-                            </button>
+                            @if($bot['is_configured'])
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-credit-card"></i>
+                                    Pay ${{ number_format($video->price, 2) }} with Stripe
+                                </button>
+                            @else
+                                <button type="button" class="btn btn-secondary btn-lg" disabled>
+                                    <i class="fas fa-cog"></i> Payment Disabled - Bot Setup Required
+                                </button>
+                            @endif
                         </div>
                     </form>
 

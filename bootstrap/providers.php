@@ -2,5 +2,5 @@
 
 return [
     App\Providers\AppServiceProvider::class,
-    // App\Providers\ViewServiceProvider::class, // Re-enable after migrations work to get dynamic bot username
+    App\Providers\ViewServiceProvider::class, // Dynamic bot username from database
 ];

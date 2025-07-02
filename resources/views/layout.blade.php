@@ -56,11 +56,19 @@
                             <i class="fas fa-video"></i> Browse Videos
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ $bot['url'] }}" target="_blank">
-                            <i class="fab fa-telegram"></i> Start Bot Chat
-                        </a>
-                    </li>
+                    @if($bot['is_configured'])
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ $bot['url'] }}" target="_blank">
+                                <i class="fab fa-telegram"></i> Start Bot Chat
+                            </a>
+                        </li>
+                    @else
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('login') }}" title="Configure bot in admin panel">
+                                <i class="fas fa-cog text-warning"></i> Setup Required
+                            </a>
+                        </li>
+                    @endif
                 </ul>
 
                 <!-- Admin Section -->

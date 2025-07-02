@@ -16,6 +16,11 @@ class PurchaseController extends Controller
      */
     public function index(Request $request)
     {
+        // Simple admin check
+        if ($redirect = $this->requireAdmin()) {
+            return $redirect;
+        }
+
         $query = Purchase::with(['video', 'user'])
             ->orderBy('created_at', 'desc');
 
