@@ -95,9 +95,7 @@ class VideoController extends Controller
                 'description' => 'nullable|string',
                 'price' => 'required|numeric|min:0',
                 'thumbnail_url' => 'nullable|url',
-                'show_blurred_thumbnail' => 'boolean',
                 'blur_intensity' => 'integer|min:1|max:20',
-                'allow_preview' => 'boolean',
                 'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -110,7 +108,11 @@ class VideoController extends Controller
             ]);
         }
 
-        $updateData = $request->only(['title', 'description', 'price', 'thumbnail_url', 'show_blurred_thumbnail', 'blur_intensity', 'allow_preview']);
+        $updateData = $request->only(['title', 'description', 'price', 'thumbnail_url', 'blur_intensity']);
+
+        // Handle boolean fields explicitly (checkboxes send no value when unchecked)
+        $updateData['show_blurred_thumbnail'] = $request->has('show_blurred_thumbnail') ? 1 : 0;
+        $updateData['allow_preview'] = $request->has('allow_preview') ? 1 : 0;
 
         // Handle thumbnail upload
         if ($request->hasFile('thumbnail') && $request->file('thumbnail')->isValid()) {

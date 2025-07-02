@@ -456,6 +456,9 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="editVideoForm" onsubmit="updateVideo(event)" enctype="multipart/form-data">
+                    <!-- Hidden inputs to ensure boolean fields are always present -->
+                    <input type="hidden" name="show_blurred_thumbnail" value="0">
+                    <input type="hidden" name="allow_preview" value="0">
                     <div class="modal-body">
                         <div class="row">
                             <!-- Basic Video Details -->
