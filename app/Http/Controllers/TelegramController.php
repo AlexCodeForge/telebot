@@ -249,9 +249,9 @@ class TelegramController extends Controller
                 $message .= "📹 *{$latestPendingPurchase->video->title}* (ID: {$latestPendingPurchase->video_id})\n";
                 $message .= "💰 {$latestPendingPurchase->formatted_amount} - ✅ Delivered!\n\n";
                 $message .= "🤖 *Available Commands:*\n";
-                $message .= "/mypurchases - See all your videos\n";
-                $message .= "/getvideo <id> - Get a specific video\n";
-                $message .= "/help - Show this help\n\n";
+                $message .= "/mypurchases - See ALL your videos with download IDs\n";
+                $message .= "/getvideo <id> - Get any specific video instantly\n";
+                $message .= "/help - Show detailed help\n\n";
                 $message .= "💡 You now have unlimited access to your verified videos!\n\n";
                 $message .= "⚠️ *Note:* If you have other pending purchases, each one will be verified when you make the purchase.";
 
@@ -281,9 +281,9 @@ class TelegramController extends Controller
             if ($existingPurchases > 0) {
                 $message .= "🎬 You have {$existingPurchases} verified video(s) in your library!\n\n";
                 $message .= "🤖 *Available Commands:*\n";
-                $message .= "/mypurchases - See all your videos\n";
-                $message .= "/getvideo <id> - Get a specific video\n";
-                $message .= "/help - Show this help";
+                $message .= "/mypurchases - See ALL your videos with download IDs\n";
+                $message .= "/getvideo <id> - Get any specific video instantly\n";
+                $message .= "/help - Show detailed help";
             } else {
                 $message .= "🛒 *How to get videos:*\n";
                 $message .= "1. Visit our store online\n";
@@ -304,15 +304,19 @@ class TelegramController extends Controller
     {
         $message = "🤖 *Video Store Bot Help*\n\n";
         $message .= "*Available Commands:*\n";
-        $message .= "/start - Welcome message and activate purchases\n";
-        $message .= "/mypurchases - List all your purchased videos\n";
+        $message .= "/start - Welcome & verify pending purchases\n";
+        $message .= "/mypurchases - Show ALL your purchased videos with IDs\n";
         $message .= "/getvideo <id> - Download a specific video by ID\n";
         $message .= "/help - Show this help message\n\n";
         $message .= "*How to Purchase:*\n";
         $message .= "1. Visit our online store\n";
         $message .= "2. Choose a video and enter your Telegram username\n";
         $message .= "3. Complete payment with Stripe\n";
-        $message .= "4. Return here and type /start to activate\n\n";
+        $message .= "4. Return here and type /start to verify & activate\n\n";
+        $message .= "*How to Download:*\n";
+        $message .= "1. Use /mypurchases to see all your videos and IDs\n";
+        $message .= "2. Use /getvideo <ID> to download any video\n";
+        $message .= "3. You have unlimited access to all verified videos!\n\n";
         $message .= "*Need Support?*\n";
         $message .= "Contact us if you have any issues with your purchases or video delivery.";
 
@@ -367,7 +371,7 @@ class TelegramController extends Controller
     }
 
     /**
-     * Handle /mypurchases command - SECURE VERSION: Limited results for security
+     * Handle /mypurchases command - Show ALL verified purchases with details for /getvideo
      */
     private function handleMyPurchasesCommand($chatId, $telegramUserId, $username)
     {
@@ -376,72 +380,74 @@ class TelegramController extends Controller
             return;
         }
 
-        // Find verified purchases for this user (limit to most recent 10 for security)
+        // Find ALL verified purchases for this user (no limit - they paid for them)
         $purchases = Purchase::where('telegram_user_id', $telegramUserId)
             ->where('verification_status', 'verified')
             ->where('purchase_status', 'completed')
             ->with('video')
             ->orderBy('created_at', 'desc')
-            ->limit(10) // Security: Limit to 10 most recent
             ->get();
 
-        $totalPurchases = Purchase::where('telegram_user_id', $telegramUserId)
-            ->where('verification_status', 'verified')
-            ->where('purchase_status', 'completed')
-            ->count();
-
         if ($purchases->isEmpty()) {
-            // Check for pending purchases (only most recent one)
-            $latestPendingPurchase = Purchase::where('telegram_username', $username)
+            // Check for pending purchases
+            $pendingPurchases = Purchase::where('telegram_username', $username)
                 ->where('verification_status', 'pending')
                 ->where('purchase_status', 'completed')
+                ->with('video')
                 ->orderBy('created_at', 'desc')
-                ->first();
+                ->get();
 
-            if ($latestPendingPurchase) {
+            if ($pendingPurchases->isNotEmpty()) {
                 $message = "⏳ *Pending Verification*\n\n";
-                $message .= "I found your latest purchase waiting for verification.\n\n";
-                $message .= "Use /start to verify and activate your purchase!";
-            } else {
-                $message = "📭 *No purchases found*\n\n";
-                $message .= "You haven't purchased any videos yet.\n";
-                $message .= "Visit our store to browse available videos!";
-            }
+                $message .= "You have {$pendingPurchases->count()} purchase(s) waiting for verification:\n\n";
 
-            $this->sendMessage($chatId, $message, 'Markdown');
+                foreach ($pendingPurchases as $purchase) {
+                    $message .= "📹 *{$purchase->video->title}*\n";
+                    $message .= "💰 {$purchase->formatted_amount} - 📅 " . $purchase->created_at->format('M d, Y') . "\n\n";
+                }
+
+                $message .= "✅ Use /start to verify and activate your purchases!";
+                $this->sendMessage($chatId, $message, 'Markdown');
+            } else {
+                $message = "📭 *No Videos Found*\n\n";
+                $message .= "You haven't purchased any videos yet.\n\n";
+                $message .= "🛒 Visit our store to purchase videos, then return here and use /start to activate them!";
+                $this->sendMessage($chatId, $message, 'Markdown');
+            }
             return;
         }
 
-        $message = "🎬 *Your Video Library*\n\n";
-        $message .= "Showing " . $purchases->count() . " of {$totalPurchases} verified video(s):\n\n";
+        // Show ALL verified purchases with details for /getvideo command
+        $message = "🎬 *Your Video Library*\n";
+        $message .= "You have {$purchases->count()} verified video(s):\n\n";
 
-        foreach ($purchases as $purchase) {
-            $video = $purchase->video;
-            $deliveryStatus = $purchase->delivered_at ?
-                "✅ Last delivered: " . $purchase->delivered_at->format('M j, Y') :
-                "🆕 Ready to deliver";
+        foreach ($purchases as $index => $purchase) {
+            $number = $index + 1;
+            $message .= "#{$number} 📹 *{$purchase->video->title}*\n";
+            $message .= "🆔 Video ID: `{$purchase->video_id}`\n";
+            $message .= "💰 {$purchase->formatted_amount} - ✅ Verified\n";
+            $message .= "📅 Purchased: " . $purchase->created_at->format('M d, Y') . "\n";
 
-            $message .= "📹 *{$video->title}*\n";
-            $message .= "💰 {$purchase->formatted_amount}\n";
-            $message .= "🆔 ID: {$video->id}\n";
-            $message .= "📊 {$deliveryStatus}\n";
-            $message .= "📥 Use: /getvideo {$video->id}\n\n";
+            if ($purchase->delivered_at) {
+                $message .= "📨 Last delivered: " . $purchase->delivered_at->format('M d, Y') . "\n";
+            }
+
+            $message .= "\n";
         }
 
-        if ($totalPurchases > 10) {
-            $message .= "⚠️ *Note:* Only showing your 10 most recent videos.\n";
-        }
-
-        $message .= "💡 *Tip:* You have unlimited access to all your videos!";
+        $message .= "🤖 *How to download:*\n";
+        $message .= "Use: `/getvideo <ID>` \n";
+        $message .= "Example: `/getvideo {$purchases->first()->video_id}`\n\n";
+        $message .= "💡 You have unlimited access to all your verified videos!";
 
         $this->sendMessage($chatId, $message, 'Markdown');
 
-        // Log the command for security monitoring
-        Log::info('User viewed their purchases', [
+        // Log the purchase list request
+        Log::info('User viewed their purchase list', [
             'telegram_user_id' => $telegramUserId,
             'username' => $username,
-            'total_purchases' => $totalPurchases,
-            'shown_purchases' => $purchases->count(),
+            'verified_purchases_count' => $purchases->count(),
+            'chat_id' => $chatId,
         ]);
     }
 
