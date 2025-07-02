@@ -12,15 +12,27 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('videos', function (Blueprint $table) {
-            // Replace the existing thumbnail_url with more comprehensive fields
-            $table->dropColumn('thumbnail_url');
+            // Replace the existing thumbnail_url with more comprehensive fields (removed ->after() to avoid PostgreSQL issues)
+            if (Schema::hasColumn('videos', 'thumbnail_url')) {
+                $table->dropColumn('thumbnail_url');
+            }
 
             // Add new thumbnail fields
-            $table->string('thumbnail_path')->nullable()->after('height'); // Local uploaded thumbnail
-            $table->string('thumbnail_url')->nullable()->after('thumbnail_path'); // External URL (if any)
-            $table->boolean('show_blurred_thumbnail')->default(true)->after('thumbnail_url'); // Show blurred version to customers
-            $table->integer('blur_intensity')->default(10)->after('show_blurred_thumbnail'); // Blur intensity (1-20)
-            $table->boolean('allow_preview')->default(false)->after('blur_intensity'); // Allow customers to see unblurred preview
+            if (!Schema::hasColumn('videos', 'thumbnail_path')) {
+                $table->string('thumbnail_path')->nullable(); // Local uploaded thumbnail
+            }
+            if (!Schema::hasColumn('videos', 'thumbnail_url')) {
+                $table->string('thumbnail_url')->nullable(); // External URL (if any)
+            }
+            if (!Schema::hasColumn('videos', 'show_blurred_thumbnail')) {
+                $table->boolean('show_blurred_thumbnail')->default(true); // Show blurred version to customers
+            }
+            if (!Schema::hasColumn('videos', 'blur_intensity')) {
+                $table->integer('blur_intensity')->default(10); // Blur intensity (1-20)
+            }
+            if (!Schema::hasColumn('videos', 'allow_preview')) {
+                $table->boolean('allow_preview')->default(false); // Allow customers to see unblurred preview
+            }
         });
     }
 
@@ -38,7 +50,7 @@ return new class extends Migration
             ]);
 
             // Add back the original thumbnail_url
-            $table->string('thumbnail_url')->nullable()->after('height');
+            $table->string('thumbnail_url')->nullable();
         });
     }
 };

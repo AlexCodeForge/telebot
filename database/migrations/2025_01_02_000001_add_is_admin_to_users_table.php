@@ -12,7 +12,9 @@ return new class extends Migration
   public function up(): void
   {
     Schema::table('users', function (Blueprint $table) {
-      $table->boolean('is_admin')->default(false)->after('email_verified_at');
+      if (!Schema::hasColumn('users', 'is_admin')) {
+        $table->boolean('is_admin')->default(false);
+      }
     });
   }
 

@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('videos', function (Blueprint $table) {
-            $table->string('thumbnail_url')->nullable()->after('height');
+            if (!Schema::hasColumn('videos', 'thumbnail_url')) {
+                $table->string('thumbnail_url')->nullable();
+            }
         });
     }
 

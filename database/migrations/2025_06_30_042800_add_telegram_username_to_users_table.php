@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('telegram_username')->nullable()->after('email');
-            $table->string('telegram_chat_id')->nullable()->after('telegram_username');
+            if (!Schema::hasColumn('users', 'telegram_username')) {
+                $table->string('telegram_username')->nullable();
+            }
+            if (!Schema::hasColumn('users', 'telegram_chat_id')) {
+                $table->string('telegram_chat_id')->nullable();
+            }
         });
     }
 

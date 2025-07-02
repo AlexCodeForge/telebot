@@ -12,10 +12,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('videos', function (Blueprint $table) {
-            $table->integer('file_size')->nullable()->after('telegram_message_data');
-            $table->integer('duration')->nullable()->after('file_size');
-            $table->integer('width')->nullable()->after('duration');
-            $table->integer('height')->nullable()->after('width');
+            // Add video metadata fields (removed ->after() clauses to avoid PostgreSQL transaction issues)
+            if (!Schema::hasColumn('videos', 'file_size')) {
+                $table->integer('file_size')->nullable();
+            }
+            if (!Schema::hasColumn('videos', 'duration')) {
+                $table->integer('duration')->nullable();
+            }
+            if (!Schema::hasColumn('videos', 'width')) {
+                $table->integer('width')->nullable();
+            }
+            if (!Schema::hasColumn('videos', 'height')) {
+                $table->integer('height')->nullable();
+            }
         });
     }
 

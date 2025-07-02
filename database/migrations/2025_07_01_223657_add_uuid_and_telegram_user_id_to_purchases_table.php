@@ -12,14 +12,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('purchases', function (Blueprint $table) {
-            // Add UUID for secure purchase identification
-            $table->uuid('purchase_uuid')->after('id')->unique();
+            // Add UUID for secure purchase identification (removed ->after() to avoid PostgreSQL transaction issues)
+            if (!Schema::hasColumn('purchases', 'purchase_uuid')) {
+                $table->uuid('purchase_uuid')->unique();
+            }
 
             // Add telegram user ID for linking purchases to telegram users
-            $table->string('telegram_user_id')->nullable()->after('telegram_username');
+            if (!Schema::hasColumn('purchases', 'telegram_user_id')) {
+                $table->string('telegram_user_id')->nullable();
+            }
 
             // Add purchase verification status
-            $table->enum('verification_status', ['pending', 'verified', 'invalid'])->default('pending')->after('purchase_status');
+            if (!Schema::hasColumn('purchases', 'verification_status')) {
+                $table->enum('verification_status', ['pending', 'verified', 'invalid'])->default('pending');
+            }
 
             // Add indexes for performance
             $table->index('purchase_uuid');

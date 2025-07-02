@@ -12,12 +12,27 @@ return new class extends Migration
   public function up(): void
   {
     Schema::table('videos', function (Blueprint $table) {
-      // Add new fields for Telegram group forwarding
-      $table->string('telegram_group_chat_id')->nullable()->after('telegram_file_id');
-      $table->integer('telegram_message_id')->nullable()->after('telegram_group_chat_id');
-      $table->json('telegram_message_data')->nullable()->after('telegram_message_id'); // Store full message object
-      $table->string('video_type')->default('file')->after('telegram_message_data'); // 'file', 'video', 'document'
-      $table->string('file_unique_id')->nullable()->after('video_type'); // Telegram's unique file identifier
+      // Add new fields for Telegram group forwarding (removed ->after() clauses to avoid order issues)
+      if (!Schema::hasColumn('videos', 'telegram_group_chat_id')) {
+        $table->string('telegram_group_chat_id')->nullable();
+      }
+      if (!Schema::hasColumn('videos', 'forwarded_to_group_at')) {
+        $table->timestamp('forwarded_to_group_at')->nullable();
+      }
+
+      // Add new fields for Telegram group forwarding (removed ->after() clauses to avoid PostgreSQL transaction issues)
+      if (!Schema::hasColumn('videos', 'telegram_message_id')) {
+        $table->integer('telegram_message_id')->nullable();
+      }
+      if (!Schema::hasColumn('videos', 'telegram_message_data')) {
+        $table->json('telegram_message_data')->nullable(); // Store full message object
+      }
+      if (!Schema::hasColumn('videos', 'video_type')) {
+        $table->string('video_type')->default('file'); // 'file', 'video', 'document'
+      }
+      if (!Schema::hasColumn('videos', 'file_unique_id')) {
+        $table->string('file_unique_id')->nullable(); // Telegram's unique file identifier
+      }
 
       // Remove old file path fields if they exist (or make them nullable)
       // We'll keep telegram_file_id as it's still useful for direct file references
@@ -39,7 +54,8 @@ return new class extends Migration
         'telegram_message_id',
         'telegram_message_data',
         'video_type',
-        'file_unique_id'
+        'file_unique_id',
+        'forwarded_to_group_at'
       ]);
 
       $table->dropIndex(['telegram_group_chat_id', 'telegram_message_id']);

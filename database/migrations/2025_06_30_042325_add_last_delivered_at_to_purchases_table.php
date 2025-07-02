@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('purchases', function (Blueprint $table) {
-            $table->timestamp('last_delivered_at')->nullable()->after('delivery_attempts');
+            if (!Schema::hasColumn('purchases', 'last_delivered_at')) {
+                $table->timestamp('last_delivered_at')->nullable();
+            }
         });
     }
 
