@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\TelegramController;
@@ -78,49 +79,94 @@ Route::get('/system-status', [TelegramController::class, 'systemStatus']);
 // One-time migration and setup route (REMOVE AFTER FIRST USE)
 Route::get('/run-migrations-setup-once', function () {
     try {
-        // Check if migrations have already been run by looking for the users table
-        if (Schema::hasTable('users')) {
-            return response()->json([
-                'status' => 'already_completed',
-                'message' => 'Database setup has already been completed. This endpoint is now disabled for security.'
-            ], 403);
+        // Check if admin user already exists (better check than table existence)
+        try {
+            if (\App\Models\User::where('email', 'admin@telebot.local')->exists()) {
+                return response()->json([
+                    'status' => 'already_completed',
+                    'message' => 'Database setup completed. Admin user exists. Remove this route for security.',
+                    'login_url' => url('/login'),
+                    'credentials' => [
+                        'email' => 'admin@telebot.local',
+                        'password' => 'admin123456'
+                    ]
+                ], 403);
+            }
+        } catch (\Exception $checkError) {
+            // If checking fails, probably no tables exist yet - continue with setup
         }
 
-        // Run migrations
-        Artisan::call('migrate', ['--force' => true]);
-        $migrationOutput = Artisan::output();
+        // Method 1: Try migrate:fresh (complete reset)
+        try {
+            Artisan::call('migrate:fresh', ['--force' => true]);
+            $migrationOutput = Artisan::output();
+            $migrationMethod = 'migrate:fresh';
+        } catch (\Exception $freshError) {
+            // Method 2: If fresh fails, try regular migrate
+            try {
+                Artisan::call('migrate', ['--force' => true]);
+                $migrationOutput = Artisan::output();
+                $migrationMethod = 'migrate';
+            } catch (\Exception $regularError) {
+                // Method 3: If both fail, try to reset and retry
+                try {
+                    // Try to drop all tables manually and recreate
+                    DB::statement('DROP SCHEMA public CASCADE');
+                    DB::statement('CREATE SCHEMA public');
+                    DB::statement('GRANT ALL ON SCHEMA public TO neondb_owner');
+                    DB::statement('GRANT ALL ON SCHEMA public TO public');
+
+                    Artisan::call('migrate', ['--force' => true]);
+                    $migrationOutput = Artisan::output();
+                    $migrationMethod = 'manual reset + migrate';
+                } catch (\Exception $resetError) {
+                    throw new \Exception("All migration methods failed. Last error: " . $resetError->getMessage());
+                }
+            }
+        }
 
         // Create admin user
         $adminUser = \App\Models\User::create([
             'name' => 'Admin User',
             'email' => 'admin@telebot.local',
-            'password' => Hash::make('admin123456'), // Change this password immediately
+            'password' => Hash::make('admin123456'),
             'email_verified_at' => now(),
         ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Database migrations completed and admin user created successfully!',
+            'message' => 'Database setup completed successfully!',
+            'method_used' => $migrationMethod,
             'admin_credentials' => [
                 'email' => 'admin@telebot.local',
                 'password' => 'admin123456',
-                'note' => 'IMPORTANT: Change this password immediately after first login!'
+                'login_url' => url('/login')
             ],
             'migration_output' => $migrationOutput,
             'next_steps' => [
-                '1. Login with the admin credentials above',
-                '2. Change the admin password immediately',
+                '1. Visit ' . url('/login') . ' and login with above credentials',
+                '2. Change the admin password immediately in profile settings',
                 '3. Remove this route from routes/web.php for security',
                 '4. Push the updated code to GitHub'
-            ]
+            ],
+            'security_note' => 'IMPORTANT: Remove this endpoint after successful setup!'
         ]);
 
     } catch (\Exception $e) {
         return response()->json([
             'status' => 'error',
             'message' => 'Setup failed: ' . $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
+            'solutions' => [
+                '1. Go to Neon dashboard → SQL Editor → Run: DROP SCHEMA public CASCADE; CREATE SCHEMA public;',
+                '2. Or go to your Neon dashboard → Settings → Reset Database',
+                '3. Then try this endpoint again'
+            ],
+            'debug' => [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ],
+            'contact' => 'If this persists, the database might have permission issues'
         ], 500);
     }
 });
