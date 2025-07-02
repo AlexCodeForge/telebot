@@ -66,6 +66,7 @@
                 <!-- Admin Section -->
                 <ul class="navbar-nav ms-auto">
                     @auth
+                        {{-- Hide admin tools for now
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.*') ? 'active' : '' }}"
                                 href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
@@ -118,6 +119,7 @@
                                 </li>
                             </ul>
                         </li>
+                        --}}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-bs-toggle="dropdown">
