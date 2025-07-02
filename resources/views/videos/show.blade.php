@@ -66,14 +66,14 @@
                                         <h5><i class="fas fa-gift"></i> This video is FREE!</h5>
                                         <p class="mb-3">🤖 <strong>Get instant access via our Telegram bot</strong></p>
 
-                                        <a href="{{ $bot['url'] }}?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-success btn-lg mb-3">
+                                        <a href="https://t.me/videotestpowerbot?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-success btn-lg mb-3">
                                             <i class="fab fa-telegram me-2"></i>Get Free Video Now
                                         </a>
 
                                         <div class="mt-3">
                                             <small class="text-muted">
                                                 <strong>Manual Steps:</strong><br>
-                                                1. Start chat with <a href="{{ $bot['url'] }}" target="_blank">{{ $bot['username'] }}</a><br>
+                                                1. Start chat with <a href="https://t.me/videotestpowerbot" target="_blank">@videotestpowerbot</a><br>
                                                 2. Send command: <code>/getvideo {{ $video->id }}</code><br>
                                                 3. Get your video instantly!
                                             </small>
