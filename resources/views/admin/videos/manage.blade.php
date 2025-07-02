@@ -341,6 +341,13 @@
                                             </tbody>
                                         </table>
                                     </div>
+
+                                    <!-- Pagination -->
+                                    @if ($videos->hasPages())
+                                        <div class="d-flex justify-content-center mt-4">
+                                            {{ $videos->links() }}
+                                        </div>
+                                    @endif
                                 @else
                                     <div class="text-center py-5">
                                         <i class="fas fa-video fa-3x text-muted mb-3"></i>
@@ -614,10 +621,12 @@
         function updateManualImportVisibility() {
             const manualImportSection = document.getElementById('manual-import-section');
 
-            if (isWebhookActive) {
-                manualImportSection.style.display = 'none';
-            } else {
-                manualImportSection.style.display = 'block';
+            if (manualImportSection) {
+                if (isWebhookActive) {
+                    manualImportSection.style.display = 'none';
+                } else {
+                    manualImportSection.style.display = 'block';
+                }
             }
         }
 

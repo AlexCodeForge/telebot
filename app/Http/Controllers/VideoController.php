@@ -17,7 +17,7 @@ class VideoController extends Controller
      */
     public function index()
     {
-        $videos = Video::orderBy('created_at', 'desc')->get();
+        $videos = Video::orderBy('created_at', 'desc')->paginate(12);
         return view('videos.index', compact('videos'));
     }
 
@@ -35,7 +35,7 @@ class VideoController extends Controller
     public function manage()
     {
         try {
-            $videos = Video::orderBy('created_at', 'desc')->get();
+            $videos = Video::orderBy('created_at', 'desc')->paginate(15);
 
             // Get webhook status
             $isWebhookActive = false;
@@ -733,7 +733,7 @@ class VideoController extends Controller
             $update = $request->all();
             Log::info('Webhook received:', $update);
 
-            // Check if we have a message with video
+            // Check if we have a message
             if (!isset($update['message'])) {
                 Log::info('No message in update');
                 return response()->json(['ok' => true]);
@@ -748,87 +748,95 @@ class VideoController extends Controller
             }
 
             $fromUserId = $fromUser['id'];
+            $username = $fromUser['username'] ?? null;
+            $firstName = $fromUser['first_name'] ?? 'User';
+            $chatId = $message['chat']['id'];
+            $text = $message['text'] ?? '';
+
             $syncUserTelegramId = Setting::get('sync_user_telegram_id');
 
-            // Get video from message
-            $video = null;
-            $fileId = null;
+            // **SYNC USER FLOW** - Handle video uploads from admin
+            if ($fromUserId == $syncUserTelegramId) {
+                // Get video from message
+                $video = null;
+                $fileId = null;
 
-            if (isset($message['video'])) {
-                $video = $message['video'];
-                $fileId = $video['file_id'];
-            } elseif (
-                isset($message['document']) &&
-                isset($message['document']['mime_type']) &&
-                strpos($message['document']['mime_type'], 'video/') === 0
-            ) {
-                $video = $message['document'];
-                $fileId = $video['file_id'];
-            }
+                if (isset($message['video'])) {
+                    $video = $message['video'];
+                    $fileId = $video['file_id'];
+                } elseif (
+                    isset($message['document']) &&
+                    isset($message['document']['mime_type']) &&
+                    strpos($message['document']['mime_type'], 'video/') === 0
+                ) {
+                    $video = $message['document'];
+                    $fileId = $video['file_id'];
+                }
 
-            // If this user sent a video but is not the sync user, respond but don't capture
-            if ($fileId && $fromUserId != $syncUserTelegramId) {
-                $this->sendTelegramMessage(
-                    $fromUserId,
-                    "Thanks for the video! However, only the configured sync user's videos are automatically captured by this bot. You can still use other bot features normally! 😊"
-                );
+                if ($fileId) {
+                    $caption = $message['caption'] ?? 'Auto-captured Video';
+                    $defaultPrice = 4.99;
 
-                Log::info("Video ignored from non-sync user: {$fromUserId} (sync user: {$syncUserTelegramId})");
-                return response()->json(['ok' => true]);
-            }
+                    $videoRecord = Video::create([
+                        'title' => $caption,
+                        'description' => "Auto-captured from Telegram",
+                        'telegram_file_id' => $fileId,
+                        'price' => $defaultPrice,
+                    ]);
 
-            // If this user sent a video and IS the sync user, capture it
-            if ($fileId && $fromUserId == $syncUserTelegramId) {
-                $caption = $message['caption'] ?? 'Auto-captured Video';
-                $defaultPrice = 4.99;
+                    $this->sendTelegramMessage(
+                        $fromUserId,
+                        "✅ Video captured successfully!\n\n" .
+                            "📹 Title: {$caption}\n" .
+                            "💰 Price: $" . number_format($defaultPrice, 2) . "\n" .
+                            "🆔 Video ID: {$videoRecord->id}"
+                    );
 
-                $videoRecord = Video::create([
-                    'title' => $caption,
-                    'description' => "Auto-captured from Telegram",
-                    'telegram_file_id' => $fileId,
-                    'price' => $defaultPrice,
-                ]);
+                    Log::info("Video auto-captured from sync user: {$fromUserId}", [
+                        'video_id' => $videoRecord->id,
+                        'file_id' => $fileId
+                    ]);
 
-                $this->sendTelegramMessage(
-                    $fromUserId,
-                    "✅ Video captured successfully!\n\n" .
-                        "📹 Title: {$caption}\n" .
-                        "💰 Price: $" . number_format($defaultPrice, 2) . "\n" .
-                        "🆔 File ID: {$fileId}"
-                );
+                    return response()->json(['ok' => true]);
+                }
 
-                Log::info("Video auto-captured from sync user: {$fromUserId}", [
-                    'video_id' => $videoRecord->id,
-                    'file_id' => $fileId
-                ]);
-
-                return response()->json(['ok' => true]);
-            }
-
-            // For any other messages (not videos), respond normally
-            if (isset($message['text'])) {
-                $text = $message['text'];
-
-                // Handle basic commands
+                // Sync user basic commands
                 if (strtolower($text) === '/start') {
                     $this->sendTelegramMessage(
                         $fromUserId,
-                        "👋 Hello! I'm the video capture bot.\n\n" .
-                            "🎥 Send me videos and I'll help you manage them!\n" .
+                        "👋 Hello Admin! I'm ready to capture videos.\n\n" .
+                            "🎥 Send me videos and I'll add them to your store!\n" .
                             "💡 Type /help for more information."
                     );
+                    return response()->json(['ok' => true]);
                 } elseif (strtolower($text) === '/help') {
                     $this->sendTelegramMessage(
                         $fromUserId,
-                        "🤖 Bot Commands:\n\n" .
-                            "/start - Start the bot\n" .
-                            "/help - Show this help message\n\n" .
-                            "📹 Just send me a video and I'll capture it automatically!"
+                        "🤖 Admin Commands:\n\n" .
+                            "/start - Admin greeting\n" .
+                            "/help - Show this help\n\n" .
+                            "📹 Send videos to automatically add them to the store!"
                     );
-                } else {
+                    return response()->json(['ok' => true]);
+                }
+            }
+
+            // **CUSTOMER FLOW** - Handle purchase verification and delivery
+            else {
+                // Handle customer commands
+                if (str_starts_with($text, '/')) {
+                    $this->handleCustomerCommand($text, $chatId, $fromUserId, $username, $firstName);
+                } elseif (isset($message['video'])) {
+                    // Non-sync user sent video
                     $this->sendTelegramMessage(
                         $fromUserId,
-                        "Thanks for your message! Send me a video to get started. 🎥"
+                        "Thanks for the video! However, only admin videos are captured automatically. You can use customer commands like /start, /mypurchases, or /getvideo <id> for your purchases! 😊"
+                    );
+                } else {
+                    // Non-command text from customer
+                    $this->sendTelegramMessage(
+                        $fromUserId,
+                        "Hello! I'm the video store bot. Use /start to verify purchases, /help for commands, or /mypurchases to see your videos. 🎬"
                     );
                 }
             }
@@ -839,6 +847,318 @@ class VideoController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json(['ok' => true]);
+        }
+    }
+
+    /**
+     * Handle customer commands
+     */
+    private function handleCustomerCommand($text, $chatId, $telegramUserId, $username, $firstName)
+    {
+        $parts = explode(' ', trim($text));
+        $command = $parts[0];
+        $args = array_slice($parts, 1);
+
+        Log::info('Customer command executed', [
+            'command' => $command,
+            'telegram_user_id' => $telegramUserId,
+            'username' => $username,
+            'chat_id' => $chatId,
+        ]);
+
+        switch ($command) {
+            case '/start':
+                $this->handleCustomerStartCommand($chatId, $telegramUserId, $username, $firstName);
+                break;
+
+            case '/help':
+                $this->handleCustomerHelpCommand($chatId);
+                break;
+
+            case '/mypurchases':
+                $this->handleCustomerMyPurchasesCommand($chatId, $telegramUserId, $username);
+                break;
+
+            case '/getvideo':
+                if (count($args) > 0) {
+                    $this->handleCustomerGetVideoCommand($chatId, $telegramUserId, $username, $args[0]);
+                } else {
+                    $this->sendTelegramMessage($chatId, "❌ Please provide a video ID. Usage: /getvideo <id>\n\nUse /mypurchases to see your available videos.");
+                }
+                break;
+
+            default:
+                $this->sendTelegramMessage($chatId, "❓ Unknown command. Type /help to see available commands.");
+        }
+    }
+
+    /**
+     * Handle customer /start command
+     */
+    private function handleCustomerStartCommand($chatId, $telegramUserId, $username, $firstName)
+    {
+        // Update/create user info
+        $this->updateUserInfo($telegramUserId, $username, $firstName);
+
+        // Check for pending purchases to verify
+        $latestPendingPurchase = null;
+        if ($username) {
+            $latestPendingPurchase = \App\Models\Purchase::where('telegram_username', $username)
+                ->where('verification_status', 'pending')
+                ->where('purchase_status', 'completed')
+                ->with('video')
+                ->orderBy('created_at', 'desc')
+                ->first();
+        }
+
+        if ($latestPendingPurchase) {
+            // Auto-verify and deliver
+            try {
+                $latestPendingPurchase->verifyTelegramUser($telegramUserId);
+                $this->deliverVideoToCustomer($chatId, $latestPendingPurchase);
+
+                Log::info('Purchase verified and delivered via /start', [
+                    'purchase_id' => $latestPendingPurchase->id,
+                    'telegram_user_id' => $telegramUserId,
+                    'telegram_username' => $username,
+                ]);
+
+                $message = "🎉 *Welcome to Video Store Bot!*\n\n";
+                $message .= "✅ Your purchase has been verified and delivered!\n\n";
+                $message .= "📹 *{$latestPendingPurchase->video->title}* (ID: {$latestPendingPurchase->video_id})\n";
+                $message .= "💰 {$latestPendingPurchase->formatted_amount} - ✅ Delivered!\n\n";
+                $message .= "🤖 *Available Commands:*\n";
+                $message .= "/mypurchases - See ALL your videos\n";
+                $message .= "/getvideo <id> - Get any video instantly\n";
+                $message .= "/help - Get help\n\n";
+                $message .= "💡 Save this chat - you can download your videos anytime!";
+
+                $this->sendTelegramMessage($chatId, $message);
+            } catch (\Exception $e) {
+                Log::error('Failed to verify/deliver purchase', [
+                    'purchase_id' => $latestPendingPurchase->id,
+                    'error' => $e->getMessage()
+                ]);
+
+                $this->sendTelegramMessage($chatId, "🎉 Welcome! I found your purchase but there was an issue with delivery. Our team has been notified. Please try /getvideo {$latestPendingPurchase->video_id} in a few minutes.");
+            }
+        } else {
+            // No pending purchases - regular welcome
+                         $this->sendTelegramMessage($chatId,
+                 "🎬 *Welcome to Video Store Bot!*\n\n" .
+                 "I help deliver your purchased videos instantly!\n\n" .
+                 "🛒 *How it works:*\n" .
+                 "1. Purchase videos from our website\n" .
+                 "2. Use /start here to verify & get videos\n" .
+                 "3. Use /getvideo <id> anytime for re-download\n\n" .
+                 "📋 *Commands:*\n" .
+                 "/mypurchases - See your purchased videos\n" .
+                 "/getvideo <id> - Download specific video\n" .
+                 "/help - Get detailed help\n\n" .
+                 "🔗 Visit our store to purchase amazing videos!"
+             );
+        }
+    }
+
+    /**
+     * Handle customer /help command
+     */
+    private function handleCustomerHelpCommand($chatId)
+    {
+        $message = "🤖 *Video Store Bot Help*\n\n";
+        $message .= "*Available Commands:*\n";
+        $message .= "/start - Verify purchases & get videos\n";
+        $message .= "/mypurchases - Show ALL purchased videos\n";
+        $message .= "/getvideo <id> - Download specific video\n";
+        $message .= "/help - Show this help\n\n";
+        $message .= "*How to Purchase:*\n";
+        $message .= "1. Visit our website video store\n";
+        $message .= "2. Choose a video & enter your Telegram username\n";
+        $message .= "3. Complete payment\n";
+        $message .= "4. Return here and type /start to verify\n\n";
+        $message .= "*How to Download:*\n";
+        $message .= "1. Use /mypurchases to see your videos\n";
+        $message .= "2. Use /getvideo <ID> to download\n";
+        $message .= "3. You have unlimited access!\n\n";
+        $message .= "*Need Support?*\n";
+        $message .= "Contact us if you have issues with purchases or delivery.";
+
+        $this->sendTelegramMessage($chatId, $message);
+    }
+
+    /**
+     * Handle customer /mypurchases command
+     */
+    private function handleCustomerMyPurchasesCommand($chatId, $telegramUserId, $username)
+    {
+        if (!$username) {
+            $this->sendTelegramMessage($chatId, "❌ You need a Telegram username to use this bot. Please set one in your Telegram settings.");
+            return;
+        }
+
+        $verifiedPurchases = \App\Models\Purchase::where('telegram_user_id', $telegramUserId)
+            ->where('verification_status', 'verified')
+            ->where('purchase_status', 'completed')
+            ->with('video')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        if ($verifiedPurchases->isEmpty()) {
+            $message = "📋 *Your Purchased Videos*\n\n";
+            $message .= "❌ No verified purchases found.\n\n";
+            $message .= "🛒 *To purchase videos:*\n";
+            $message .= "1. Visit our website\n";
+            $message .= "2. Purchase with username: @{$username}\n";
+            $message .= "3. Return here and use /start to verify\n\n";
+            $message .= "💡 Make sure you use the exact username: *{$username}*";
+        } else {
+            $message = "📋 *Your Purchased Videos* ({$verifiedPurchases->count()})\n\n";
+
+            foreach ($verifiedPurchases as $purchase) {
+                $video = $purchase->video;
+                $deliveryStatus = $purchase->delivery_status === 'delivered' ? '✅' : '⏳';
+
+                $message .= "🎬 *{$video->title}*\n";
+                $message .= "💰 {$purchase->formatted_amount} {$deliveryStatus}\n";
+                $message .= "🆔 Video ID: *{$video->id}*\n";
+                $message .= "📅 Purchased: {$purchase->created_at->format('M d, Y')}\n";
+                $message .= "🔗 Use: `/getvideo {$video->id}`\n\n";
+            }
+
+            $message .= "💡 *Tip:* Use `/getvideo <ID>` to download any video instantly!";
+        }
+
+        $this->sendTelegramMessage($chatId, $message);
+    }
+
+    /**
+     * Handle customer /getvideo command
+     */
+    private function handleCustomerGetVideoCommand($chatId, $telegramUserId, $username, $videoId)
+    {
+        if (!$username) {
+            $this->sendTelegramMessage($chatId, "❌ You need a Telegram username to use this bot. Please set one in Telegram settings.");
+            return;
+        }
+
+        // Find verified purchase
+        $purchase = \App\Models\Purchase::where('telegram_user_id', $telegramUserId)
+            ->where('video_id', $videoId)
+            ->where('verification_status', 'verified')
+            ->where('purchase_status', 'completed')
+            ->with('video')
+            ->first();
+
+        if (!$purchase) {
+            // Check for pending purchase
+            $pendingPurchase = \App\Models\Purchase::where('telegram_username', $username)
+                ->where('video_id', $videoId)
+                ->where('verification_status', 'pending')
+                ->where('purchase_status', 'completed')
+                ->first();
+
+            if ($pendingPurchase) {
+                $this->sendTelegramMessage($chatId, "⏳ *Purchase Pending Verification*\n\nVideo #{$videoId} needs verification.\n\nUse /start to verify purchases!");
+            } else {
+                $this->sendTelegramMessage($chatId, "❌ *Access Denied*\n\nYou haven't purchased video #{$videoId}.\n\nUse /mypurchases to see available videos.");
+            }
+            return;
+        }
+
+        // Deliver the video
+        $this->deliverVideoToCustomer($chatId, $purchase);
+    }
+
+    /**
+     * Deliver video to customer
+     */
+    private function deliverVideoToCustomer($chatId, $purchase)
+    {
+        $video = $purchase->video;
+
+        try {
+            if ($video->telegram_file_id) {
+                // Send video using file_id
+                $botToken = Setting::get('telegram_bot_token') ?: config('telegram.bots.mybot.token');
+                $url = "https://api.telegram.org/bot{$botToken}/sendVideo";
+
+                $response = Http::post($url, [
+                    'chat_id' => $chatId,
+                    'video' => $video->telegram_file_id,
+                    'caption' => "🎬 *{$video->title}*\n\n" .
+                        "📝 {$video->description}\n\n" .
+                        "✅ Delivered successfully!\n" .
+                        "💡 Use /getvideo {$video->id} anytime for unlimited access.",
+                    'parse_mode' => 'Markdown'
+                ]);
+
+                if ($response->successful()) {
+                    $purchase->markAsDelivered();
+
+                    Log::info('Video delivered to customer', [
+                        'purchase_id' => $purchase->id,
+                        'video_id' => $video->id,
+                        'telegram_user_id' => $purchase->telegram_user_id
+                    ]);
+                } else {
+                    Log::error('Failed to send video to customer', [
+                        'purchase_id' => $purchase->id,
+                        'response' => $response->body()
+                    ]);
+
+                    $this->sendTelegramMessage($chatId, "❌ Failed to deliver video. Our team has been notified. Please try again in a few minutes.");
+                }
+            } else {
+                Log::error('Video has no telegram_file_id', ['video_id' => $video->id]);
+                $this->sendTelegramMessage($chatId, "❌ Video file not available. Our team has been notified.");
+            }
+        } catch (\Exception $e) {
+            Log::error('Video delivery error', [
+                'purchase_id' => $purchase->id,
+                'error' => $e->getMessage()
+            ]);
+
+            $this->sendTelegramMessage($chatId, "❌ Delivery error occurred. Please try again or contact support.");
+        }
+    }
+
+    /**
+     * Update user info for customers
+     */
+    private function updateUserInfo($telegramUserId, $username, $firstName)
+    {
+        if (!$telegramUserId) return;
+
+        $user = \App\Models\User::where('telegram_user_id', $telegramUserId)->first();
+
+        if ($user) {
+            // Update existing user
+            $updates = [];
+            if ($username && $user->telegram_username !== $username) {
+                $updates['telegram_username'] = $username;
+            }
+            if ($firstName && $user->name !== $firstName) {
+                $updates['name'] = $firstName;
+            }
+
+            if (!empty($updates)) {
+                $user->update($updates);
+            }
+        } else {
+            // Create user only if they have purchases
+            $hasPurchases = \App\Models\Purchase::where('telegram_username', $username)
+                ->where('purchase_status', 'completed')
+                ->exists();
+
+            if ($hasPurchases) {
+                \App\Models\User::create([
+                    'name' => $firstName,
+                    'telegram_user_id' => $telegramUserId,
+                    'telegram_username' => $username,
+                    'email' => $username . '@telegram.bot',
+                    'password' => bcrypt('telegram_user_' . $telegramUserId),
+                ]);
+            }
         }
     }
 
