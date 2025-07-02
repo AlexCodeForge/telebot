@@ -20,7 +20,7 @@ Route::get('/purchase/{uuid}', [PaymentController::class, 'viewPurchase'])->name
 // Authentication routes
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
-        return view('dashboard');
+        return redirect()->route('admin.videos.manage');
     })->name('dashboard');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

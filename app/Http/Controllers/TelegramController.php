@@ -141,7 +141,7 @@ class TelegramController extends Controller
     }
 
     /**
-     * Handle bot commands with rate limiting
+     * Handle bot commands - removed rate limiting for better user experience
      */
     private function handleCommand($text, $chatId, $telegramUserId, $username, $firstName)
     {
@@ -149,26 +149,7 @@ class TelegramController extends Controller
         $command = $parts[0];
         $args = array_slice($parts, 1);
 
-        // Rate limiting: Check if user is sending too many commands
-        $cacheKey = "telegram_command_rate_{$telegramUserId}";
-        $commandCount = Cache::get($cacheKey, 0);
-
-        if ($commandCount >= 10) { // Max 10 commands per minute
-            $this->sendMessage($chatId, "⚠️ Too many commands. Please wait a moment before trying again.");
-
-            Log::warning('Rate limit exceeded for Telegram user', [
-                'telegram_user_id' => $telegramUserId,
-                'username' => $username,
-                'command' => $command,
-                'chat_id' => $chatId,
-            ]);
-            return;
-        }
-
-        // Increment command counter
-        Cache::put($cacheKey, $commandCount + 1, 60); // 1 minute TTL
-
-        // Log all commands for security monitoring
+        // Log all commands for security monitoring (but no rate limiting)
         Log::info('Telegram command executed', [
             'command' => $command,
             'telegram_user_id' => $telegramUserId,

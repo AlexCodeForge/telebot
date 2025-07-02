@@ -201,7 +201,8 @@
                             </div>
                         </div>
 
-                        {{-- Manual Video Import - Only show when webhook is disabled --}}
+                        {{-- HIDDEN FOR NOW: Manual Video Import - Only show when webhook is disabled --}}
+                        {{--
                         <div class="card mb-4" id="manual-import-section" style="display: none;">
                             <div class="card-header">
                                 <h5 class="mb-0">
@@ -243,7 +244,7 @@
                                         </div>
                                         <div class="col-md-4 d-flex align-items-end">
                                             <button type="button" class="btn btn-success w-100"
-                                                onclick="manualImportVideo()">
+                                                onclick="quickImport('${fileId}', '${(msg.caption || 'Imported Video').replace(/'/g, "\\'")}')">
                                                 <i class="fas fa-upload"></i> Import Video
                                             </button>
                                         </div>
@@ -251,6 +252,7 @@
                                 @endif
                             </div>
                         </div>
+                        --}}
 
                         {{-- Videos Table --}}
                         <div class="card">
@@ -793,10 +795,11 @@
 
             document.getElementById('manual-file-id').value = fileId;
             document.getElementById('manual-title').value = title;
-            manualImportVideo();
+            // manualImportVideo(); // Commented out - manual import feature hidden
         }
 
-        // Manual import video
+        // HIDDEN FOR NOW: Manual import video function
+        /*
         function manualImportVideo() {
             if (isWebhookActive) {
                 showAlert('warning', 'Manual import is disabled while webhook is active.');
@@ -842,8 +845,7 @@
                     console.error('Manual import failed:', error);
                 });
         }
-
-        // Edit video (moved to end of file with proper AJAX handling)
+        */
 
         // Test video
         function testVideo(id) {

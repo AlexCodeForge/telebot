@@ -357,15 +357,27 @@
 
         // View purchase details
         function viewPurchase(purchaseId) {
-            fetch(`/admin/purchases/${purchaseId}`)
-                .then(response => response.text())
+            fetch(`/admin/purchases/${purchaseId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
                 .then(html => {
                     document.getElementById('purchaseDetailsContent').innerHTML = html;
                     new bootstrap.Modal(document.getElementById('purchaseDetailsModal')).show();
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showAlert('error', 'Failed to load purchase details');
+                    showAlert('error', 'Failed to load purchase details: ' + error.message);
                 });
         }
 
