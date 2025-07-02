@@ -535,7 +535,7 @@
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" id="edit-show-blurred"
-                                            name="show_blurred_thumbnail" value="1" checked>
+                                            name="show_blurred_thumbnail" value="1" onchange="toggleCustomerDisplaySettings()">
                                         <label class="form-check-label" for="edit-show-blurred">
                                             Show Blurred Thumbnail to Customers
                                         </label>
@@ -545,7 +545,7 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-3" id="blur-intensity-container">
                                     <label for="edit-blur-intensity" class="form-label">Blur Intensity</label>
                                     <input type="range" class="form-range" id="edit-blur-intensity"
                                         name="blur_intensity" min="1" max="20" value="10">
@@ -560,7 +560,7 @@
 
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-3">
+                                <div class="mb-3" id="allow-preview-container">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" id="edit-allow-preview"
                                             name="allow_preview" value="1">
@@ -967,11 +967,17 @@
             // Set thumbnail fields
             document.getElementById('edit-thumbnail-url').value = thumbnailUrl || '';
 
-            // Set blur settings
-            document.getElementById('edit-show-blurred').checked = showBlurred;
+            // Set blur settings - convert string 'true'/'false' to boolean
+            const isBlurredEnabled = showBlurred === true || showBlurred === 'true';
+            const isPreviewEnabled = allowPreview === true || allowPreview === 'true';
+
+            document.getElementById('edit-show-blurred').checked = isBlurredEnabled;
             document.getElementById('edit-blur-intensity').value = blurIntensity || 10;
             document.getElementById('blur-intensity-display').textContent = blurIntensity || 10;
-            document.getElementById('edit-allow-preview').checked = allowPreview;
+            document.getElementById('edit-allow-preview').checked = isPreviewEnabled;
+
+            // Toggle display settings based on blur checkbox
+            toggleCustomerDisplaySettings();
 
             // Show current thumbnail if exists
             const currentThumbnailPreview = document.getElementById('current-thumbnail-preview');
@@ -1085,6 +1091,35 @@
             setTimeout(() => {
                 alertDiv.remove();
             }, 5000);
+        }
+
+        // Toggle customer display settings
+        function toggleCustomerDisplaySettings() {
+            const showBlurred = document.getElementById('edit-show-blurred').checked;
+            const blurIntensityContainer = document.getElementById('blur-intensity-container');
+            const allowPreviewContainer = document.getElementById('allow-preview-container');
+            const blurIntensitySlider = document.getElementById('edit-blur-intensity');
+            const allowPreviewCheckbox = document.getElementById('edit-allow-preview');
+
+            if (showBlurred) {
+                // Enable blur settings
+                blurIntensityContainer.style.display = 'block';
+                allowPreviewContainer.style.display = 'block';
+                blurIntensityContainer.style.opacity = '1';
+                allowPreviewContainer.style.opacity = '1';
+                blurIntensitySlider.disabled = false;
+                allowPreviewCheckbox.disabled = false;
+            } else {
+                // Disable but show blur settings with reduced opacity
+                blurIntensityContainer.style.display = 'block';
+                allowPreviewContainer.style.display = 'block';
+                blurIntensityContainer.style.opacity = '0.5';
+                allowPreviewContainer.style.opacity = '0.5';
+                blurIntensitySlider.disabled = true;
+                allowPreviewCheckbox.disabled = true;
+                // Also uncheck the allow preview when blur is disabled
+                allowPreviewCheckbox.checked = false;
+            }
         }
     </script>
 @endsection
