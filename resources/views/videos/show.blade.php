@@ -67,13 +67,13 @@
                                         <p class="mb-2">🤖 <strong>Get instant access via our Telegram bot:</strong></p>
                                         <ol class="mb-3">
                                             <li>Start a conversation with our bot: <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-sm btn-primary">@videotestpowerbot</a></li>
-                                            <li>Send the command: <code>/getvideo {{ $video->id }}</code></li>
+                                            <li>Send this command: <a href="https://t.me/videotestpowerbot?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-sm btn-success">/getvideo {{ $video->id }}</a></li>
                                             <li>Get your free video instantly!</li>
                                         </ol>
                                         <p class="mb-0"><small class="text-muted">No purchase required - available to all users!</small></p>
                                     </div>
                                     <div class="text-center">
-                                        <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-success btn-lg mb-3">
+                                        <a href="https://t.me/videotestpowerbot?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-success btn-lg mb-3">
                                             <i class="fab fa-telegram"></i> Get Free Video Now
                                         </a>
                                         <br>

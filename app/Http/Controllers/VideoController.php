@@ -823,13 +823,7 @@ class VideoController extends Controller
                     );
                     return response()->json(['ok' => true]);
                 } elseif (strtolower($text) === '/help') {
-                    $this->sendTelegramMessage(
-                        $fromUserId,
-                        "🤖 Admin Commands:\n\n" .
-                            "/start - Admin greeting\n" .
-                            "/help - Show this help\n\n" .
-                            "📹 Send videos to automatically add them to the store!"
-                    );
+                    $this->handleCustomerHelpCommand($chatId);
                     return response()->json(['ok' => true]);
                 }
             }
@@ -888,6 +882,26 @@ class VideoController extends Controller
 
         switch ($command) {
             case '/start':
+                // Check if /start has parameters (like getvideo_5)
+                if (count($args) > 0) {
+                    $startParam = $args[0];
+
+                    // Handle getvideo_X parameter
+                    if (strpos($startParam, 'getvideo_') === 0) {
+                        $videoId = str_replace('getvideo_', '', $startParam);
+                        if (is_numeric($videoId)) {
+                            Log::info('Start command with getvideo parameter', [
+                                'video_id' => $videoId,
+                                'telegram_user_id' => $telegramUserId,
+                                'username' => $username
+                            ]);
+                            $this->handleCustomerGetVideoCommand($chatId, $telegramUserId, $username, $videoId);
+                            return;
+                        }
+                    }
+                }
+
+                // Regular /start command
                 $this->handleCustomerStartCommand($chatId, $telegramUserId, $username, $firstName);
                 break;
 
@@ -1055,7 +1069,7 @@ class VideoController extends Controller
         $message .= "4. Return here and type /start to verify\n\n";
         $message .= "*How to Download:*\n";
         $message .= "1. Use /mypurchases to see your videos\n";
-        $message .= "2. Use /getvideo <ID> to download\n";
+        $message .= "2. Use `/getvideo <ID>` to download\n";
         $message .= "3. You have unlimited access!\n\n";
         $message .= "*Need Support?*\n";
         $message .= "Contact us if you have issues with purchases or delivery.";

@@ -176,11 +176,17 @@ class Video extends Model
      */
     public function getThumbnailUrl(): ?string
     {
+        // Check for uploaded thumbnail first (highest priority)
         if ($this->thumbnail_path) {
             return asset('storage/thumbnails/' . $this->thumbnail_path);
         }
 
-        return $this->thumbnail_url;
+        // Check for external thumbnail URL
+        if ($this->thumbnail_url) {
+            return $this->thumbnail_url;
+        }
+
+        return null;
     }
 
     /**
@@ -198,13 +204,25 @@ class Video extends Model
     }
 
     /**
-     * Check if video has a thumbnail
+     * Check if video has a thumbnail (uploaded, external, or potentially from Telegram)
      *
      * @return bool
      */
     public function hasThumbnail(): bool
     {
-        return !empty($this->thumbnail_path) || !empty($this->thumbnail_url);
+        // Check for uploaded thumbnail
+        if (!empty($this->thumbnail_path)) {
+            return true;
+        }
+
+        // Check for external thumbnail URL
+        if (!empty($this->thumbnail_url)) {
+            return true;
+        }
+
+        // For now, we'll consider videos without uploaded thumbnails as not having thumbnails
+        // In the future, we could extract and cache Telegram thumbnails
+        return false;
     }
 
     /**
