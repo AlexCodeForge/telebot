@@ -98,25 +98,6 @@
                                 </a>
                             @endif
                         </div>
-
-                        <!-- Features -->
-                        <div class="row text-center">
-                            <div class="col-md-4">
-                                <i class="fas fa-lightning-bolt fa-2x text-warning mb-2"></i>
-                                <h6>Instant Delivery</h6>
-                                <small class="text-muted">Delivered to your Telegram immediately</small>
-                            </div>
-                            <div class="col-md-4">
-                                <i class="fas fa-shield-alt fa-2x text-success mb-2"></i>
-                                <h6>Secure Payment</h6>
-                                <small class="text-muted">Protected by Stripe</small>
-                            </div>
-                            <div class="col-md-4">
-                                <i class="fas fa-hd-video fa-2x text-info mb-2"></i>
-                                <h6>High Quality</h6>
-                                <small class="text-muted">Premium video content</small>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

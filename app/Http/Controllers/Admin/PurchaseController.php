@@ -32,13 +32,17 @@ class PurchaseController extends Controller
             $query->where('verification_status', $request->verification_status);
         }
 
-        // Search by username or email
+        // Search by username, email, uuid, id, or video id
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('telegram_username', 'like', "%{$search}%")
                     ->orWhere('customer_email', 'like', "%{$search}%")
-                    ->orWhere('purchase_uuid', 'like', "%{$search}%");
+                    ->orWhere('purchase_uuid', 'like', "%{$search}%")
+                    ->orWhere('id', 'like', "%{$search}%")
+                    ->orWhereHas('video', function ($videoQuery) use ($search) {
+                        $videoQuery->where('id', 'like', "%{$search}%");
+                    });
             });
         }
 

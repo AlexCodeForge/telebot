@@ -66,60 +66,24 @@
                 <!-- Admin Section -->
                 <ul class="navbar-nav ms-auto">
                     @auth
-                        {{-- Hide admin tools for now
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.*') ? 'active' : '' }}"
                                 href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-cog"></i> Admin
-                                @php
-                                    $pendingCount = \App\Models\Video::whereNotNull('telegram_file_id')
-                                        ->where('price', 0)
-                                        ->count();
-                                @endphp
-                                @if ($pendingCount > 0)
-                                    <span class="badge bg-warning text-dark">{{ $pendingCount }}</span>
-                                @endif
                             </a>
                             <ul class="dropdown-menu">
                                 <li>
                                     <a class="dropdown-item" href="{{ route('admin.videos.manage') }}">
                                         <i class="fas fa-video"></i> Manage Videos
-                                        @if ($pendingCount > 0)
-                                            <span class="badge bg-warning text-dark ms-2">{{ $pendingCount }} pending</span>
-                                        @endif
                                     </a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item" href="{{ route('admin.purchases.index') }}">
                                         <i class="fas fa-shopping-cart"></i> Manage Purchases
-                                        @php
-                                            $pendingPurchases = \App\Models\Purchase::where(
-                                                'verification_status',
-                                                'pending',
-                                            )->count();
-                                        @endphp
-                                        @if ($pendingPurchases > 0)
-                                            <span class="badge bg-info text-dark ms-2">{{ $pendingPurchases }}
-                                                pending</span>
-                                        @endif
-                                    </a>
-                                </li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="/telegram/bot-emulator" target="_blank">
-                                        <i class="fas fa-robot"></i> Bot Emulator
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="/system-status" target="_blank">
-                                        <i class="fas fa-chart-line"></i> System Status
                                     </a>
                                 </li>
                             </ul>
                         </li>
-                        --}}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-bs-toggle="dropdown">

@@ -77,23 +77,6 @@
                     </div>
                 </div>
 
-                <!-- Admin Tools -->
-                <div class="card mb-4 border-warning">
-                    <div class="card-header bg-warning text-dark">
-                        <h6 class="mb-0"><i class="fas fa-tools me-2"></i>Admin Tools</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex gap-3 align-items-center">
-                            <button type="button" class="btn btn-warning" onclick="fixStuckDeliveries()">
-                                <i class="fas fa-wrench me-2"></i>Fix Stuck Deliveries
-                            </button>
-                            <small class="text-muted">
-                                Automatically fix purchases that are verified but stuck in "pending delivery" status
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Filters -->
                 <div class="card mb-4">
                     <div class="card-body">
@@ -101,7 +84,7 @@
                             <div class="col-md-3">
                                 <label for="search" class="form-label">Search</label>
                                 <input type="text" class="form-control" id="search" name="search"
-                                    value="{{ request('search') }}" placeholder="Username, email, or UUID">
+                                    value="{{ request('search') }}" placeholder="Username, email, ID, UUID, or video ID">
                             </div>
                             <div class="col-md-2">
                                 <label for="purchase_status" class="form-label">Purchase Status</label>
@@ -540,50 +523,6 @@
             .catch(error => {
                 console.error('Error:', error);
                 showAlert('error', 'An error occurred while updating the username');
-            });
-        }
-
-        // Fix stuck deliveries
-        function fixStuckDeliveries() {
-            if (!confirm('This will automatically fix purchases that are verified but stuck in "pending delivery" status. Continue?')) {
-                return;
-            }
-
-            const button = event.target;
-            const originalText = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Fixing...';
-            button.disabled = true;
-
-            fetch('/admin/purchases/fix-stuck-deliveries', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Content-Type': 'application/json',
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                button.innerHTML = originalText;
-                button.disabled = false;
-
-                if (data.success) {
-                    let message = data.message;
-                    if (data.errors && data.errors.length > 0) {
-                        message += '\\n\\nErrors: ' + data.errors.join(', ');
-                    }
-                    showAlert('success', message);
-
-                    // Reload page after a delay to show updated counts
-                    setTimeout(() => location.reload(), 2000);
-                } else {
-                    showAlert('error', data.message || 'Failed to fix stuck deliveries');
-                }
-            })
-            .catch(error => {
-                button.innerHTML = originalText;
-                button.disabled = false;
-                console.error('Error:', error);
-                showAlert('error', 'An error occurred while fixing deliveries');
             });
         }
 
