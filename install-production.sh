@@ -112,6 +112,10 @@ if [[ -d "$INSTALL_PATH" && -f "$INSTALL_PATH/.env" && -f "$INSTALL_PATH/artisan
     log_info "Running database migrations..."
     php artisan migrate --force
 
+    # Ensure admin user exists (in case of new installation or user deletion)
+    log_info "Ensuring admin user exists..."
+    php artisan db:seed --class=AdminUserSeeder --force
+
     # Clear and rebuild caches
     log_info "Optimizing application..."
     php artisan config:clear
@@ -460,8 +464,15 @@ if ! command_exists sqlite3; then
     apt-get install -y sqlite3
 fi
 
-php artisan migrate:fresh --force
-php artisan db:seed --force
+# Run migrations without seeding first
+log_info "Running database migrations..."
+php artisan migrate --force
+
+# Only seed the admin user (avoid Faker issues)
+log_info "Creating admin user..."
+php artisan db:seed --class=AdminUserSeeder --force
+
+log_success "Database setup completed (admin user created, no sample videos)"
 
 # Reinstall production dependencies (remove dev packages)
 log_info "Optimizing for production..."

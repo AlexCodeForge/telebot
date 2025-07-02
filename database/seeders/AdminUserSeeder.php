@@ -14,16 +14,24 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create admin user if it doesn't exist
-        User::firstOrCreate(
-            ['email' => 'admin@telebot.com'],
-            [
-                'name' => 'Admin User',
-                'email' => 'admin@telebot.com',
-                'password' => Hash::make('admin123'),
-                'email_verified_at' => now(),
-                'is_admin' => true,
-            ]
-        );
+        // Clear existing admin users
+        User::where('email', 'admin@telebot.com')->delete();
+
+        // Create admin user with hardcoded values
+        User::create([
+            'name' => 'Admin User',
+            'email' => 'admin@telebot.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('admin123'),
+            'is_admin' => true,
+            'telegram_username' => null,
+            'telegram_user_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->command->info('Admin user created successfully!');
+        $this->command->info('Email: admin@telebot.com');
+        $this->command->info('Password: admin123');
     }
 }
