@@ -161,6 +161,69 @@
     </div>
 @endif
 
+<!-- Debug Information -->
+<div class="row mt-3">
+    <div class="col-12">
+        <h6><i class="fas fa-bug me-2"></i>Debug Information</h6>
+        <div class="card border-info">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted"><strong>Created:</strong></small><br>
+                        <small>{{ $purchase->created_at->format('M d, Y H:i:s') }} ({{ $purchase->created_at->diffForHumans() }})</small>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted"><strong>Last Updated:</strong></small><br>
+                        <small>{{ $purchase->updated_at->format('M d, Y H:i:s') }} ({{ $purchase->updated_at->diffForHumans() }})</small>
+                    </div>
+                </div>
+
+                @if($purchase->delivery_notes)
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <small class="text-muted"><strong>Delivery Notes:</strong></small><br>
+                            <small class="font-monospace">{{ $purchase->delivery_notes }}</small>
+                        </div>
+                    </div>
+                @endif
+
+                @if($purchase->delivery_metadata)
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <small class="text-muted"><strong>Delivery Metadata:</strong></small><br>
+                            <pre class="small bg-light p-2 rounded">{{ json_encode($purchase->delivery_metadata, JSON_PRETTY_PRINT) }}</pre>
+                        </div>
+                    </div>
+                @endif
+
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <small class="text-info">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Troubleshooting:</strong> If verified but not delivered, the user needs to type <code>/start</code> in the bot again.
+                            If they're the admin/sync user, create a different Telegram account for testing.
+                        </small>
+
+                        @php
+                            $syncUserTelegramId = \App\Models\Setting::get('sync_user_telegram_id');
+                        @endphp
+
+                        @if($syncUserTelegramId && $purchase->telegram_user_id == $syncUserTelegramId)
+                            <div class="alert alert-warning mt-2 mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>⚠️ SYNC USER CONFLICT DETECTED!</strong><br>
+                                <small>This purchase is from the configured sync user (ID: {{ $syncUserTelegramId }}).
+                                The bot may not deliver videos properly to the sync user.
+                                Use a different Telegram account for testing.</small>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Action Buttons -->
 <div class="row mt-4">
     <div class="col-12">

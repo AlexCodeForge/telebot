@@ -237,11 +237,12 @@ class TelegramController extends Controller
                 // Immediately deliver the video
                 $this->deliverVideoToUser($chatId, $latestPendingPurchase);
 
-                Log::info('Latest purchase automatically verified via /start', [
+                Log::info('Latest purchase automatically verified and delivered via /start', [
                     'purchase_id' => $latestPendingPurchase->id,
                     'purchase_uuid' => $latestPendingPurchase->purchase_uuid,
                     'telegram_user_id' => $telegramUserId,
                     'telegram_username' => $username,
+                    'delivery_status' => $latestPendingPurchase->fresh()->delivery_status,
                 ]);
 
                 $message = "🎉 *Welcome to Video Store Bot!*\n\n";
@@ -462,7 +463,7 @@ class TelegramController extends Controller
         try {
             if ($video->telegram_file_id) {
                 // Send video using file_id
-                Telegram::sendVideo([
+                $response = Telegram::sendVideo([
                     'chat_id' => $chatId,
                     'video' => $video->telegram_file_id,
                     'caption' => "🎬 *{$video->title}*\n\n" .
@@ -471,9 +472,32 @@ class TelegramController extends Controller
                         "💡 Use /getvideo {$video->id} anytime for unlimited access.",
                     'parse_mode' => 'Markdown'
                 ]);
-                $delivered = true;
+
+                if ($response && isset($response['message_id'])) {
+                    $delivered = true;
+
+                    // Mark as delivered with metadata
+                    $purchase->markAsDelivered([
+                        'telegram_delivery' => true,
+                        'delivered_to_chat_id' => $chatId,
+                        'delivery_timestamp' => now()->toISOString(),
+                        'telegram_message_id' => $response['message_id'],
+                        'delivery_method' => 'telegram_file_id',
+                    ]);
+
+                    Log::info('Video delivered successfully via file_id', [
+                        'video_id' => $video->id,
+                        'purchase_id' => $purchase->id,
+                        'chat_id' => $chatId,
+                        'telegram_username' => $purchase->telegram_username,
+                        'message_id' => $response['message_id'],
+                        'delivery_status' => $purchase->fresh()->delivery_status,
+                    ]);
+                } else {
+                    $errorMessage = 'Telegram API returned invalid response';
+                }
             } else {
-                $errorMessage = 'Video file not available for delivery';
+                $errorMessage = 'Video file not available for delivery (no telegram_file_id)';
             }
         } catch (\Exception $e) {
             $errorMessage = $e->getMessage();
@@ -481,27 +505,27 @@ class TelegramController extends Controller
                 'video_id' => $video->id,
                 'purchase_id' => $purchase->id,
                 'chat_id' => $chatId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'telegram_file_id' => $video->telegram_file_id ?? 'null',
             ]);
         }
 
-        if ($delivered) {
-            // Mark as delivered
-            $purchase->markAsDelivered([
-                'telegram_delivery' => true,
-                'delivered_to_chat_id' => $chatId,
-                'delivery_timestamp' => now()->toISOString(),
-            ]);
+        if (!$delivered) {
+            // Mark delivery as failed
+            $purchase->markAsDeliveryFailed($errorMessage);
 
-            Log::info('Video delivered successfully', [
+            $this->sendMessage($chatId, "❌ *Delivery Failed*\n\nSorry, there was an issue delivering your video. Please try again later or contact support.\n\nError: {$errorMessage}", 'Markdown');
+
+            Log::error('Video delivery marked as failed', [
                 'video_id' => $video->id,
                 'purchase_id' => $purchase->id,
                 'chat_id' => $chatId,
-                'telegram_username' => $purchase->telegram_username
+                'error' => $errorMessage,
+                'delivery_status' => $purchase->fresh()->delivery_status,
             ]);
-        } else {
-            $this->sendMessage($chatId, "❌ *Delivery Failed*\n\nSorry, there was an issue delivering your video. Please try again later or contact support.\n\nError: {$errorMessage}", 'Markdown');
         }
+
+        return $delivered;
     }
 
     private function verifyUser($chatId, $telegramUserId, $username)

@@ -129,7 +129,7 @@ class PurchaseController extends Controller
             Log::info('Purchase manually marked as delivered by admin', [
                 'purchase_id' => $purchase->id,
                 'purchase_uuid' => $purchase->purchase_uuid,
-                'admin_user' => auth()->user()->id ?? 'unknown',
+                'admin_user' => Auth::user()->id ?? 'unknown',
             ]);
 
             return response()->json([
@@ -170,7 +170,7 @@ class PurchaseController extends Controller
             Log::info('Delivery retry initiated by admin', [
                 'purchase_id' => $purchase->id,
                 'purchase_uuid' => $purchase->purchase_uuid,
-                'admin_user' => auth()->user()->id ?? 'unknown',
+                'admin_user' => Auth::user()->id ?? 'unknown',
             ]);
 
             return response()->json([
@@ -239,7 +239,7 @@ class PurchaseController extends Controller
                 'purchase_uuid' => $purchase->purchase_uuid,
                 'old_username' => $oldUsername,
                 'new_username' => $username,
-                'admin_user' => auth()->user()->id ?? 'unknown',
+                'admin_user' => Auth::user()->id ?? 'unknown',
             ]);
 
             return response()->json([
@@ -249,15 +249,14 @@ class PurchaseController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Admin failed to update telegram username', [
+            Log::error('Failed to update telegram username via admin', [
                 'purchase_id' => $purchase->id,
                 'error' => $e->getMessage(),
-                'admin_user' => auth()->user()->id ?? 'unknown',
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update username: ' . $e->getMessage()
+                'message' => 'Failed to update username: ' . $e->getMessage(),
             ]);
         }
     }
@@ -294,5 +293,64 @@ class PurchaseController extends Controller
         ];
 
         return response()->json($stats);
+    }
+
+    /**
+     * Fix stuck deliveries (admin tool)
+     */
+    public function fixStuckDeliveries(Request $request)
+    {
+        try {
+            // Find purchases that are verified but still showing as pending delivery
+            $stuckPurchases = Purchase::where('verification_status', 'verified')
+                ->where('delivery_status', 'pending')
+                ->whereNotNull('telegram_user_id')
+                ->where('purchase_status', 'completed')
+                ->get();
+
+            $fixed = 0;
+            $errors = [];
+
+            foreach ($stuckPurchases as $purchase) {
+                try {
+                    // If purchase is verified and has telegram_user_id, mark as delivered
+                    if ($purchase->telegram_user_id && $purchase->verification_status === 'verified') {
+                        $purchase->markAsDelivered([
+                            'admin_fix' => true,
+                            'fixed_by_admin' => Auth::user()->id,
+                            'fix_timestamp' => now()->toISOString(),
+                            'fix_reason' => 'Auto-fixed stuck delivery status',
+                        ]);
+                        $fixed++;
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Purchase {$purchase->id}: " . $e->getMessage();
+                }
+            }
+
+            Log::info('Admin fixed stuck deliveries', [
+                'admin_user' => Auth::user()->id,
+                'fixed_count' => $fixed,
+                'errors' => $errors,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Fixed {$fixed} stuck deliveries.",
+                'fixed_count' => $fixed,
+                'errors' => $errors,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fix stuck deliveries', [
+                'admin_user' => Auth::user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fix deliveries: ' . $e->getMessage(),
+            ]);
+        }
     }
 }

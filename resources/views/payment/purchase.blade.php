@@ -94,6 +94,16 @@
                                             your video will be automatically delivered to you. This page will automatically
                                             refresh when your video is delivered.
                                         </small>
+
+                                        <!-- Bot Conversation Button -->
+                                        <div class="mt-3">
+                                            <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-success btn-lg">
+                                                <i class="fab fa-telegram me-2"></i>Start Conversation with Bot
+                                            </a>
+                                            <p class="text-muted mt-2 mb-0">
+                                                <small><i class="fas fa-info-circle me-1"></i>Click this button to open Telegram and start chatting with our bot directly!</small>
+                                            </p>
+                                        </div>
                                     </div>
                                 @elseif($purchase->verification_status === 'verified')
                                     @if ($purchase->delivery_status === 'delivered')
@@ -106,6 +116,16 @@
                                                 account.</p>
                                             <small class="text-muted">Delivered on:
                                                 {{ $purchase->delivered_at->format('M d, Y H:i:s') }}</small>
+
+                                            <!-- Bot Access Button -->
+                                            <div class="mt-3">
+                                                <a href="https://t.me/videotestpowerbot" target="_blank" class="btn btn-success">
+                                                    <i class="fab fa-telegram me-2"></i>Open Bot Chat
+                                                </a>
+                                                <p class="text-muted mt-2 mb-0">
+                                                    <small><i class="fas fa-video me-1"></i>Use <code>/getvideo {{ $purchase->video_id }}</code> anytime to get your video again!</small>
+                                                </p>
+                                            </div>
                                         </div>
                                     @elseif($purchase->delivery_status === 'pending')
                                         <div class="alert alert-info">

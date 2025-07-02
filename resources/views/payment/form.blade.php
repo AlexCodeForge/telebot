@@ -32,7 +32,7 @@
                     </div>
 
                     <!-- Payment Form -->
-                    <form action="{{ route('payment.process', $video) }}" method="POST">
+                    <form id="paymentForm">
                         @csrf
 
                         <div class="mb-3">
@@ -60,7 +60,7 @@
                         @endif
 
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-success btn-lg">
+                            <button type="submit" class="btn btn-success btn-lg" id="paymentButton">
                                 <i class="fas fa-credit-card"></i> Proceed to Payment
                                 (${{ number_format($video->price, 2) }})
                             </button>
@@ -82,4 +82,112 @@
             </div>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+<script>
+    document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const button = document.getElementById('paymentButton');
+        const originalText = button.innerHTML;
+        const username = document.getElementById('telegram_username').value.trim();
+
+        if (!username) {
+            showAlert('error', 'Please enter your Telegram username');
+            return;
+        }
+
+        // Show loading state
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        button.disabled = true;
+
+        // Clear any existing error messages
+        clearExistingAlerts();
+
+        fetch('/api/create-payment-intent', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            },
+            body: JSON.stringify({
+                video_id: {{ $video->id }},
+                telegram_username: username
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                // Handle duplicate purchase or other errors
+                if (data.existing_purchase) {
+                    showDuplicatePurchaseError(data.error, data.existing_purchase);
+                } else {
+                    showAlert('error', data.error);
+                }
+
+                button.innerHTML = originalText;
+                button.disabled = false;
+            } else if (data.session_url) {
+                // Redirect to Stripe checkout
+                window.location.href = data.session_url;
+            } else {
+                showAlert('error', 'Unexpected response from server');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Payment error:', error);
+            showAlert('error', 'Payment setup failed. Please try again.');
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    });
+
+    function showAlert(type, message) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+
+        // Insert after the form
+        const form = document.getElementById('paymentForm');
+        form.insertAdjacentHTML('afterend', alertHtml);
+    }
+
+    function showDuplicatePurchaseError(message, purchaseInfo) {
+        const alertHtml = `
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Duplicate Purchase Detected</h6>
+                <p class="mb-2">${message}</p>
+                <hr>
+                <small class="text-muted">
+                    <strong>Purchase Date:</strong> ${purchaseInfo.purchase_date}<br>
+                    <strong>Status:</strong> ${purchaseInfo.verification_status} / ${purchaseInfo.delivery_status}
+                </small>
+                ${purchaseInfo.purchase_uuid ? `
+                    <div class="mt-2">
+                        <a href="/purchase/${purchaseInfo.purchase_uuid}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i>View Purchase Details
+                        </a>
+                    </div>
+                ` : ''}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+
+        // Insert after the form
+        const form = document.getElementById('paymentForm');
+        form.insertAdjacentHTML('afterend', alertHtml);
+    }
+
+    function clearExistingAlerts() {
+        document.querySelectorAll('.alert').forEach(alert => alert.remove());
+    }
+</script>
 @endsection

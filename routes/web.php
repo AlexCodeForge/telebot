@@ -58,6 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/purchases/{purchase}/retry-delivery', [\App\Http\Controllers\Admin\PurchaseController::class, 'retryDelivery'])->name('admin.purchases.retry-delivery');
     Route::post('/admin/purchases/{purchase}/update-notes', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateNotes'])->name('admin.purchases.update-notes');
     Route::post('/admin/purchases/{purchase}/update-username', [\App\Http\Controllers\Admin\PurchaseController::class, 'updateTelegramUsername'])->name('admin.purchases.update-username');
+    Route::post('/admin/purchases/fix-stuck-deliveries', [\App\Http\Controllers\Admin\PurchaseController::class, 'fixStuckDeliveries'])->name('admin.purchases.fix-stuck-deliveries');
 });
 
 // Telegram webhook (must be accessible without auth)
@@ -70,5 +71,8 @@ Route::get('/bot-test', [TelegramController::class, 'botEmulator']); // Alias
 
 // System status
 Route::get('/system-status', [TelegramController::class, 'systemStatus']);
+
+// API routes
+Route::post('/api/create-payment-intent', [PaymentController::class, 'createPaymentIntent'])->name('api.create-payment-intent');
 
 require __DIR__ . '/auth.php';
