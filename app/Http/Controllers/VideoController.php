@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Exception;
+use VercelBlobPhp\Client as BlobClient;
+use VercelBlobPhp\CommonCreateBlobOptions;
 
 class VideoController extends Controller
 {
@@ -145,26 +147,50 @@ class VideoController extends Controller
                 // Delete old thumbnail from Vercel Blob if exists
                 if ($video->thumbnail_path && $video->thumbnail_blob_url) {
                     try {
-                        $blobClient = new \VercelBlobPhp\Client(env('test_READ_WRITE_TOKEN'));
-                        $blobClient->del([$video->thumbnail_blob_url]);
-                        Log::info('Old thumbnail deleted from Vercel Blob', ['url' => $video->thumbnail_blob_url]);
+                        $blobClient = new BlobClient(env('test_READ_WRITE_TOKEN'));
+                        // Extract blob name from URL for deletion
+                        $pathToDelete = str_replace('thumbnails/', '', $video->thumbnail_path);
+                        $blobClient->del([$pathToDelete]);
+                        Log::info('Old thumbnail deleted from Vercel Blob', ['path' => $pathToDelete]);
                     } catch (\Exception $e) {
                         Log::warning('Failed to delete old thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
                     }
                 }
 
+                // Check if Vercel Blob token is available
+                $blobToken = env('test_READ_WRITE_TOKEN');
+                if (empty($blobToken)) {
+                    throw new \Exception('Vercel Blob token not configured');
+                }
+
                 // Store new thumbnail to Vercel Blob directly (read from stream)
-                $blobClient = new \VercelBlobPhp\Client(env('test_READ_WRITE_TOKEN'));
+                $blobClient = new BlobClient($blobToken);
 
                 // Read file content directly from upload stream to avoid filesystem issues
                 $thumbnailContent = $thumbnailFile->get();
 
-                $options = new \VercelBlobPhp\CommonCreateBlobOptions(
+                if (empty($thumbnailContent)) {
+                    throw new \Exception('Failed to read thumbnail file content');
+                }
+
+                $options = new CommonCreateBlobOptions(
                     addRandomSuffix: false,
-                    contentType: $thumbnailFile->getMimeType(),
+                    contentType: $thumbnailFile->getMimeType() ?: 'image/jpeg',
                 );
 
+                Log::info('Attempting to upload to Vercel Blob', [
+                    'filename' => $thumbnailName,
+                    'size' => strlen($thumbnailContent),
+                    'content_type' => $thumbnailFile->getMimeType(),
+                    'token_exists' => !empty($blobToken)
+                ]);
+
                 $result = $blobClient->put($thumbnailName, $thumbnailContent, $options);
+
+                if (!$result || !isset($result->url)) {
+                    throw new \Exception('Vercel Blob upload failed - no URL returned');
+                }
+
                 $publicUrl = $result->url;
 
                 $updateData['thumbnail_path'] = $thumbnailName;
@@ -209,9 +235,11 @@ class VideoController extends Controller
         // Delete thumbnail from Vercel Blob if exists
         if ($video->thumbnail_blob_url) {
             try {
-                $blobClient = new \VercelBlobPhp\Client(env('test_READ_WRITE_TOKEN'));
-                $blobClient->del([$video->thumbnail_blob_url]);
-                Log::info('Thumbnail deleted from Vercel Blob', ['video_id' => $video->id, 'url' => $video->thumbnail_blob_url]);
+                $blobClient = new BlobClient(env('test_READ_WRITE_TOKEN'));
+                // Extract blob name from path for deletion
+                $pathToDelete = str_replace('thumbnails/', '', $video->thumbnail_path);
+                $blobClient->del([$pathToDelete]);
+                Log::info('Thumbnail deleted from Vercel Blob', ['video_id' => $video->id, 'path' => $pathToDelete]);
             } catch (\Exception $e) {
                 Log::warning('Failed to delete thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
             }
