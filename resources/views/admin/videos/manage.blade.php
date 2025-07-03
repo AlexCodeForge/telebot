@@ -403,10 +403,8 @@
                                         class="text-decoration-none">Stripe Dashboard → Webhooks</a> (optional but
                                     recommended for security)</li>
                                 <li><strong>Vercel Blob Token:</strong> Get from <a href="https://vercel.com/dashboard"
-                                        target="_blank" class="text-decoration-none">Vercel Dashboard → Storage → Blob → Settings</a>
+                                        target="_blank" class="text-decoration-none">Vercel Dashboard → Storage → Blob</a>
                                     (required for thumbnail uploads on serverless deployments)</li>
-                                <li><strong>Vercel Blob Store ID:</strong> Found in your Vercel Blob store settings (starts with "store_")</li>
-                                <li><strong>Vercel Blob Base URL:</strong> The public URL of your blob store (like https://yourstore.public.blob.vercel-storage.com)</li>
                             </ul>
                         </div>
 
@@ -466,33 +464,28 @@
                             <div class="form-text">Required for thumbnail uploads on Vercel (serverless deployment)</div>
                         </div>
 
-                        <!-- Vercel Blob Store Configuration -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="modal_vercel_blob_store_id" class="form-label">
-                                        <i class="fas fa-database text-info"></i> Vercel Blob Store ID
-                                    </label>
-                                    <input type="text" class="form-control" id="modal_vercel_blob_store_id"
-                                        placeholder="store_lplRsSrAbxTyf1Og"
-                                        value="{{ Setting::get('vercel_blob_store_id') }}">
-                                    <div class="form-text">Get from Vercel Dashboard → Storage → Blob → Your Store</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="modal_vercel_blob_base_url" class="form-label">
-                                        <i class="fas fa-link text-info"></i> Vercel Blob Base URL
-                                    </label>
-                                    <input type="url" class="form-control" id="modal_vercel_blob_base_url"
-                                        placeholder="https://lplrssrabxtyf1og.public.blob.vercel-storage.com"
-                                        value="{{ Setting::get('vercel_blob_base_url') }}">
-                                    <div class="form-text">The base URL for your Vercel Blob store</div>
-                                </div>
-                            </div>
+                        <!-- Vercel Blob Store ID -->
+                        <div class="mb-3">
+                            <label for="modal_vercel_blob_store_id" class="form-label">
+                                <i class="fas fa-database text-info"></i> Vercel Blob Store ID
+                            </label>
+                            <input type="text" class="form-control" id="modal_vercel_blob_store_id"
+                                placeholder="store_lplRsSrAbxTyf1Og"
+                                value="{{ $vercelBlobStoreId ?? '' }}">
+                            <div class="form-text">Your unique store ID from Vercel Dashboard → Storage → Blob</div>
                         </div>
-            </div>
-        </form>
+
+                        <!-- Vercel Blob Base URL -->
+                        <div class="mb-3">
+                            <label for="modal_vercel_blob_base_url" class="form-label">
+                                <i class="fas fa-link text-info"></i> Vercel Blob Base URL
+                            </label>
+                            <input type="url" class="form-control" id="modal_vercel_blob_base_url"
+                                placeholder="https://lplrssrabxtyf1og.public.blob.vercel-storage.com"
+                                value="{{ $vercelBlobBaseUrl ?? '' }}">
+                            <div class="form-text">Base URL for your blob store (without trailing slash)</div>
+                        </div>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -999,8 +992,7 @@
             if (telegramToken && !telegramToken.includes('*')) tokens.telegram_token = telegramToken;
             if (stripeKey && !stripeKey.includes('*')) tokens.stripe_key = stripeKey;
             if (stripeSecret && !stripeSecret.includes('*')) tokens.stripe_secret = stripeSecret;
-            if (stripeWebhookSecret && !stripeWebhookSecret.includes('*')) tokens.stripe_webhook_secret =
-                stripeWebhookSecret;
+            if (stripeWebhookSecret && !stripeWebhookSecret.includes('*')) tokens.stripe_webhook_secret = stripeWebhookSecret;
             if (vercelBlobToken && !vercelBlobToken.includes('*')) tokens.vercel_blob_token = vercelBlobToken;
             if (vercelBlobStoreId) tokens.vercel_blob_store_id = vercelBlobStoreId;
             if (vercelBlobBaseUrl) tokens.vercel_blob_base_url = vercelBlobBaseUrl;

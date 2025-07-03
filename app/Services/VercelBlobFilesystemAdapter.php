@@ -40,7 +40,7 @@ class VercelBlobFilesystemAdapter implements FilesystemAdapter
         return false;
     }
 
-    public function write(string $path, string $contents, Config $config): void
+        public function write(string $path, string $contents, Config $config): void
     {
         try {
             $options = new CommonCreateBlobOptions(
@@ -53,6 +53,8 @@ class VercelBlobFilesystemAdapter implements FilesystemAdapter
             // Store the blob info for later reference
             $this->blobs[$path] = $result;
 
+            // Store URL in config for retrieval
+            $config->set('vercel_blob_url', $result->url);
         } catch (\Exception $e) {
             throw UnableToWriteFile::atLocation($path, $e->getMessage(), $e);
         }
@@ -150,7 +152,7 @@ class VercelBlobFilesystemAdapter implements FilesystemAdapter
         return new FileAttributes($path, null, null, null, null);
     }
 
-    public function listContents(string $path, bool $deep): iterable
+        public function listContents(string $path, bool $deep): iterable
     {
         try {
             $result = $this->client->list();
@@ -202,9 +204,17 @@ class VercelBlobFilesystemAdapter implements FilesystemAdapter
             return $this->blobs[$path]->url;
         }
 
-        // Use hardcoded fallback - settings are configured later by customer
-        $baseUrl = "https://blob.vercel-storage.com";
+        // Get base URL from settings (dynamic configuration)
+        $baseUrl = \App\Models\Setting::get('vercel_blob_base_url');
 
+        if (!$baseUrl) {
+            // Fallback to hardcoded for backward compatibility
+            return "https://blob.vercel-storage.com/{$path}";
+        }
+
+        // For existing files, construct URL using configured base URL
+        // Remove trailing slash if present
+        $baseUrl = rtrim($baseUrl, '/');
         return "{$baseUrl}/{$path}";
     }
 
