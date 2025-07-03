@@ -110,7 +110,7 @@ class VideoController extends Controller
                 'price' => 'required|numeric|min:0',
                 'thumbnail_url' => 'nullable|url',
                 'thumbnail_blob_url' => 'nullable|url',
-                'blur_intensity' => 'integer|min:1|max:20',
+                'blur_intensity' => 'nullable|integer|min:1|max:20',
                 // Fix: Only validate thumbnail if it's actually uploaded and not empty
                 'thumbnail' => 'nullable|file|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
