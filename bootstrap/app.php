@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'telegram/webhook',
             'telegram/bot-emulator'
         ]);
+
+        // Replace the default TrimStrings middleware with our serverless version
+        $middleware->remove(\Illuminate\Foundation\Http\Middleware\TrimStrings::class);
+        $middleware->append(\App\Http\Middleware\ServerlessTrimStrings::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
