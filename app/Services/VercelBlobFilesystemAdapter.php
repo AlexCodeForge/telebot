@@ -40,7 +40,7 @@ class VercelBlobFilesystemAdapter implements FilesystemAdapter
         return false;
     }
 
-        public function write(string $path, string $contents, Config $config): void
+    public function write(string $path, string $contents, Config $config): void
     {
         try {
             $options = new CommonCreateBlobOptions(
@@ -53,8 +53,6 @@ class VercelBlobFilesystemAdapter implements FilesystemAdapter
             // Store the blob info for later reference
             $this->blobs[$path] = $result;
 
-            // Store URL in config for retrieval
-            $config->set('vercel_blob_url', $result->url);
         } catch (\Exception $e) {
             throw UnableToWriteFile::atLocation($path, $e->getMessage(), $e);
         }
@@ -152,7 +150,7 @@ class VercelBlobFilesystemAdapter implements FilesystemAdapter
         return new FileAttributes($path, null, null, null, null);
     }
 
-        public function listContents(string $path, bool $deep): iterable
+    public function listContents(string $path, bool $deep): iterable
     {
         try {
             $result = $this->client->list();
