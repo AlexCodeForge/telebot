@@ -88,9 +88,9 @@ class VideoController extends Controller
     public function update(Request $request, Video $video)
     {
         try {
-            // Enhanced JSON content type detection
+            // ✅ FIX: Use correct Laravel 12 content type detection methods
             $isJsonRequest = $request->isJson() ||
-                            $request->getContentType() === 'json' ||
+                            $request->expectsJson() ||
                             $request->header('Content-Type') === 'application/json' ||
                             str_contains($request->header('Content-Type', ''), 'application/json');
 
@@ -112,7 +112,7 @@ class VideoController extends Controller
             Log::info('Video update request', [
                 'video_id' => $video->id,
                 'request_data' => $requestData,
-                'content_type' => $request->getContentType(),
+                'content_type' => $request->header('Content-Type'),
                 'is_json' => $isJsonRequest,
                 'request_size' => strlen($request->getContent())
             ]);
