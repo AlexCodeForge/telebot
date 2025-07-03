@@ -145,7 +145,7 @@ class VideoController extends Controller
                 // Delete old thumbnail from Vercel Blob if exists
                 if ($video->thumbnail_path && $video->thumbnail_blob_url) {
                     try {
-                        $blobClient = new \VercelBlobPhp\Client(env('BLOB_READ_WRITE_TOKEN'));
+                        $blobClient = new \VercelBlobPhp\Client(env('test_READ_WRITE_TOKEN'));
                         $blobClient->del([$video->thumbnail_blob_url]);
                         Log::info('Old thumbnail deleted from Vercel Blob', ['url' => $video->thumbnail_blob_url]);
                     } catch (\Exception $e) {
@@ -154,7 +154,7 @@ class VideoController extends Controller
                 }
 
                 // Store new thumbnail to Vercel Blob directly (read from stream)
-                $blobClient = new \VercelBlobPhp\Client(env('BLOB_READ_WRITE_TOKEN'));
+                $blobClient = new \VercelBlobPhp\Client(env('test_READ_WRITE_TOKEN'));
 
                 // Read file content directly from upload stream to avoid filesystem issues
                 $thumbnailContent = $thumbnailFile->get();
@@ -209,7 +209,7 @@ class VideoController extends Controller
         // Delete thumbnail from Vercel Blob if exists
         if ($video->thumbnail_blob_url) {
             try {
-                $blobClient = new \VercelBlobPhp\Client(env('BLOB_READ_WRITE_TOKEN'));
+                $blobClient = new \VercelBlobPhp\Client(env('test_READ_WRITE_TOKEN'));
                 $blobClient->del([$video->thumbnail_blob_url]);
                 Log::info('Thumbnail deleted from Vercel Blob', ['video_id' => $video->id, 'url' => $video->thumbnail_blob_url]);
             } catch (\Exception $e) {
