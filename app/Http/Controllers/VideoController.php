@@ -97,49 +97,86 @@ class VideoController extends Controller
             return $redirect;
         }
 
-        // Handle JSON input by merging it with the request
-        if ($request->getContentType() === 'json') {
-            $jsonData = json_decode($request->getContent(), true);
-            if ($jsonData) {
-                $request->merge($jsonData);
-            }
-        }
-
-        // Log incoming request for debugging
-        Log::info('Video update request', [
-            'video_id' => $video->id,
-            'request_data' => $request->all(),
-            'content_type' => $request->getContentType()
-        ]);
-
         try {
-            $request->validate([
-                'title' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'price' => 'required|numeric|min:0',
-                'thumbnail_url' => 'nullable|url',
-                'thumbnail_blob_url' => 'nullable|url',
-                'blur_intensity' => 'nullable|integer|min:1|max:20',
-                'show_blurred' => 'nullable|boolean',
-                'allow_preview' => 'nullable|boolean',
-                // Fix: Only validate thumbnail if it's actually uploaded and not empty
-                'thumbnail' => 'nullable|file|image|mimes:jpeg,png,jpg,gif|max:2048',
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation failed', ['errors' => $e->errors()]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed: ' . implode(', ', array_map(function ($errors) {
-                    return implode(', ', $errors);
-                }, $e->errors()))
-            ]);
-        }
+            // Enhanced JSON content type detection
+            $isJsonRequest = $request->isJson() ||
+                            $request->getContentType() === 'json' ||
+                            $request->header('Content-Type') === 'application/json' ||
+                            str_contains($request->header('Content-Type', ''), 'application/json');
 
-        $updateData = $request->only(['title', 'description', 'price', 'thumbnail_url', 'blur_intensity']);
+            // Handle JSON input by merging it with the request
+            if ($isJsonRequest) {
+                $jsonData = json_decode($request->getContent(), true);
+                if ($jsonData && is_array($jsonData)) {
+                    $request->merge($jsonData);
+                }
+            }
 
-        // Handle boolean fields from JSON input (map frontend field names to database field names)
-        $updateData['show_blurred_thumbnail'] = $request->input('show_blurred') ? 1 : 0;
-        $updateData['allow_preview'] = $request->input('allow_preview') ? 1 : 0;
+            // Log incoming request for debugging (but limit size to prevent memory issues)
+            $requestData = $request->all();
+            if (count($requestData) > 20) {
+                $requestData = array_slice($requestData, 0, 20, true);
+                $requestData['_truncated'] = true;
+            }
+
+            Log::info('Video update request', [
+                'video_id' => $video->id,
+                'request_data' => $requestData,
+                'content_type' => $request->getContentType(),
+                'is_json' => $isJsonRequest,
+                'request_size' => strlen($request->getContent())
+            ]);
+
+            // Enhanced validation with better error handling
+            try {
+                $validationRules = [
+                    'title' => 'required|string|max:255',
+                    'description' => 'nullable|string|max:2000',
+                    'price' => 'required|numeric|min:0|max:9999.99',
+                    'thumbnail_url' => 'nullable|url|max:500',
+                    'thumbnail_blob_url' => 'nullable|url|max:500',
+                    'blur_intensity' => 'nullable|integer|min:1|max:20',
+                    'show_blurred' => 'nullable|boolean',
+                    'allow_preview' => 'nullable|boolean',
+                ];
+
+                // Only validate file if it's actually present and not empty
+                if ($request->hasFile('thumbnail') && $request->file('thumbnail')->isValid()) {
+                    $validationRules['thumbnail'] = 'file|image|mimes:jpeg,png,jpg,gif|max:2048';
+                }
+
+                $validated = $request->validate($validationRules);
+
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                Log::error('Validation failed', ['errors' => $e->errors(), 'video_id' => $video->id]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+
+            // Prepare update data
+            $updateData = [];
+
+            // Basic fields
+            if ($request->has('title')) $updateData['title'] = $request->input('title');
+            if ($request->has('description')) $updateData['description'] = $request->input('description');
+            if ($request->has('price')) $updateData['price'] = (float) $request->input('price');
+            if ($request->has('thumbnail_url')) $updateData['thumbnail_url'] = $request->input('thumbnail_url');
+            if ($request->has('blur_intensity')) $updateData['blur_intensity'] = (int) $request->input('blur_intensity');
+
+            // Boolean fields with proper conversion
+            if ($request->has('show_blurred')) {
+                $showBlurred = $request->input('show_blurred');
+                $updateData['show_blurred_thumbnail'] = ($showBlurred === true || $showBlurred === 1 || $showBlurred === '1') ? 1 : 0;
+            }
+
+            if ($request->has('allow_preview')) {
+                $allowPreview = $request->input('allow_preview');
+                $updateData['allow_preview'] = ($allowPreview === true || $allowPreview === 1 || $allowPreview === '1') ? 1 : 0;
+            }
 
         // Handle direct Vercel Blob upload (from JavaScript direct upload)
         if ($request->has('thumbnail_blob_url') && !empty($request->input('thumbnail_blob_url'))) {
@@ -288,19 +325,29 @@ class VideoController extends Controller
             }
         }
 
-        Log::info('Updating video with data', [
-            'video_id' => $video->id,
-            'update_data' => $updateData,
-            'original_show_blurred' => $video->show_blurred_thumbnail,
-            'new_show_blurred' => $updateData['show_blurred_thumbnail'] ?? 'not set'
-        ]);
+            // Update the video
+            $video->update($updateData);
 
-        $video->update($updateData);
+            Log::info('Video updated successfully', ['video_id' => $video->id, 'updates' => array_keys($updateData)]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Video updated successfully!'
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Video updated successfully!',
+                'video' => $video->fresh()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Video update failed', [
+                'video_id' => $video->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update video: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -1663,6 +1710,25 @@ class VideoController extends Controller
                 'success' => false,
                 'error' => 'Failed to upload: ' . $e->getMessage()
             ]);
+        }
+    }
+
+    /**
+     * Helper method to delete blob thumbnail
+     */
+    private function deleteBlobThumbnail(string $blobUrl): void
+    {
+        try {
+            if (class_exists('VercelBlobPhp\Client')) {
+                $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
+                if ($blobToken) {
+                    $blobClient = new BlobClient($blobToken);
+                    $blobClient->del([$blobUrl]);
+                    Log::info('Old thumbnail deleted from Vercel Blob', ['url' => $blobUrl]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to delete old thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
         }
     }
 }

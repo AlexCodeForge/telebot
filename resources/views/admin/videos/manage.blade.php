@@ -1107,37 +1107,47 @@
                     // Debug: Log what we're sending
                     console.log('Form data being sent:', formData);
 
+                    console.log('Submitting video update:', formData);
+
                     // Submit as JSON instead of FormData to avoid serverless middleware issues
                     const response = await fetch(`/admin/videos/${videoId}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Accept': 'application/json'
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
                         },
                         body: JSON.stringify(formData)
                     });
 
-                    // Check if response is JSON
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const data = await response.json();
-                        console.log('Response received:', data);
+                    // Enhanced response handling
+                    const responseText = await response.text();
+                    console.log('Raw response:', responseText);
 
-                        if (data.success) {
-                            showAlert('success', 'Video updated successfully!');
-                            setTimeout(() => {
-                                bootstrap.Modal.getInstance(document.getElementById('editVideoModal')).hide();
-                                window.location.reload();
-                            }, 1500);
-                        } else {
-                            showAlert('danger', data.message || data.error || 'Failed to update video');
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+
+                        // Check if response looks like a server error page
+                        if (responseText.includes('500') || responseText.includes('Internal Server Error')) {
+                            throw new Error('Server error occurred. Please try again or contact support.');
                         }
+
+                        throw new Error('Invalid server response. Please try again.');
+                    }
+
+                    if (data.success) {
+                        showAlert('success', 'Video updated successfully!');
+                        setTimeout(() => {
+                            bootstrap.Modal.getInstance(document.getElementById('editVideoModal')).hide();
+                            window.location.reload();
+                        }, 1500);
                     } else {
-                        // If not JSON, it might be an error page
-                        const text = await response.text();
-                        console.error('Non-JSON response:', text);
-                        throw new Error('Server returned non-JSON response');
+                        const errorMsg = data.message || data.error || 'Failed to update video';
+                        showAlert('danger', errorMsg);
                     }
                 } catch (error) {
                     showAlert('danger', 'Update failed: ' + error.message);
