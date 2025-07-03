@@ -111,7 +111,8 @@ class VideoController extends Controller
                 'thumbnail_url' => 'nullable|url',
                 'thumbnail_blob_url' => 'nullable|url',
                 'blur_intensity' => 'integer|min:1|max:20',
-                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                // Fix: Only validate thumbnail if it's actually uploaded and not empty
+                'thumbnail' => 'nullable|file|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed', ['errors' => $e->errors()]);
@@ -174,8 +175,8 @@ class VideoController extends Controller
                 ]);
             }
         }
-        // Handle traditional file upload (fallback for when JS direct upload isn't available)
-        elseif ($request->hasFile('thumbnail') && $request->file('thumbnail')->isValid()) {
+        // Handle traditional file upload ONLY if file is actually uploaded and valid
+        elseif ($request->hasFile('thumbnail') && $request->file('thumbnail')->isValid() && $request->file('thumbnail')->getSize() > 0) {
             try {
                 $thumbnailFile = $request->file('thumbnail');
                 $extension = $thumbnailFile->getClientOriginalExtension();

@@ -1039,8 +1039,8 @@
                     const formData = new FormData(form);
                     const thumbnailFile = formData.get('thumbnail');
 
-                    // If there's a thumbnail file, upload it to Vercel Blob first
-                    if (thumbnailFile && thumbnailFile.size > 0) {
+                    // Fix: Only process file if it's actually selected and has content
+                    if (thumbnailFile && thumbnailFile.size > 0 && thumbnailFile.name !== '') {
                         console.log('Uploading thumbnail to Vercel Blob...');
 
                         // Upload directly to Vercel Blob
@@ -1065,6 +1065,10 @@
                         // Replace the file with the blob URL
                         formData.delete('thumbnail');
                         formData.set('thumbnail_blob_url', uploadResult.blob_url);
+                    } else {
+                        // Fix: Remove empty file input from form data
+                        formData.delete('thumbnail');
+                        console.log('No thumbnail file selected, skipping upload');
                     }
 
                     // Add the method override to form data

@@ -218,7 +218,12 @@ class Video extends Model
      */
     public function hasThumbnail(): bool
     {
-        // Check for uploaded thumbnail
+        // Check for Vercel Blob thumbnail URL (primary)
+        if (!empty($this->thumbnail_blob_url)) {
+            return true;
+        }
+
+        // Check for uploaded thumbnail (local storage fallback)
         if (!empty($this->thumbnail_path)) {
             return true;
         }
