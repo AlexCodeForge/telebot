@@ -109,6 +109,7 @@ class VideoController extends Controller
                 'description' => 'nullable|string',
                 'price' => 'required|numeric|min:0',
                 'thumbnail_url' => 'nullable|url',
+                'thumbnail_blob_url' => 'nullable|url',
                 'blur_intensity' => 'integer|min:1|max:20',
                 'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
@@ -128,8 +129,54 @@ class VideoController extends Controller
         $updateData['show_blurred_thumbnail'] = $request->has('show_blurred_thumbnail') && $request->input('show_blurred_thumbnail') == '1' ? 1 : 0;
         $updateData['allow_preview'] = $request->has('allow_preview') && $request->input('allow_preview') == '1' ? 1 : 0;
 
-        // Handle thumbnail upload
-        if ($request->hasFile('thumbnail') && $request->file('thumbnail')->isValid()) {
+        // Handle direct Vercel Blob upload (from JavaScript direct upload)
+        if ($request->has('thumbnail_blob_url') && !empty($request->input('thumbnail_blob_url'))) {
+            try {
+                $blobUrl = $request->input('thumbnail_blob_url');
+
+                // Validate that this is a valid Vercel Blob URL for this store
+                $expectedStoreId = 'lplrssrabxtyf1og'; // From user's store info
+                if (!str_contains($blobUrl, $expectedStoreId . '.public.blob.vercel-storage.com')) {
+                    throw new \Exception('Invalid blob URL - not from authorized store');
+                }
+
+                // Delete old thumbnail from Vercel Blob if exists
+                if ($video->thumbnail_blob_url) {
+                    try {
+                        if (class_exists('VercelBlobPhp\Client')) {
+                            $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
+                            $blobClient = new BlobClient($blobToken);
+                            $blobClient->del([$video->thumbnail_blob_url]);
+                            Log::info('Old thumbnail deleted from Vercel Blob', ['url' => $video->thumbnail_blob_url]);
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to delete old thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
+                    }
+                }
+
+                // Extract the path from the blob URL for storage
+                $parsedUrl = parse_url($blobUrl);
+                $thumbnailPath = ltrim($parsedUrl['path'], '/');
+
+                $updateData['thumbnail_blob_url'] = $blobUrl;
+                $updateData['thumbnail_path'] = $thumbnailPath;
+                $updateData['thumbnail_url'] = null; // Clear external URL if using blob
+
+                Log::info('Direct blob upload processed', [
+                    'blob_url' => $blobUrl,
+                    'thumbnail_path' => $thumbnailPath
+                ]);
+
+            } catch (\Exception $e) {
+                Log::error('Direct blob URL processing error', ['error' => $e->getMessage()]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error processing blob URL: ' . $e->getMessage()
+                ]);
+            }
+        }
+        // Handle traditional file upload (fallback for when JS direct upload isn't available)
+        elseif ($request->hasFile('thumbnail') && $request->file('thumbnail')->isValid()) {
             try {
                 $thumbnailFile = $request->file('thumbnail');
                 $extension = $thumbnailFile->getClientOriginalExtension();
@@ -1536,4 +1583,75 @@ class VideoController extends Controller
     }
 
     // clearAllVideos method removed - database management section removed
+
+    /**
+     * Admin: Direct upload to Vercel Blob (bypasses Laravel file processing)
+     */
+    public function directUpload(Request $request)
+    {
+        // Admin check
+        if ($redirect = $this->requireAdmin()) {
+            return $redirect;
+        }
+
+        try {
+            $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
+            if (empty($blobToken)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Vercel Blob token not configured'
+                ]);
+            }
+
+            // Check if Vercel Blob classes are available
+            if (!class_exists('VercelBlobPhp\Client')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Vercel Blob package not available'
+                ]);
+            }
+
+            // Get the raw file data from the request body
+            $fileData = $request->getContent();
+            $filename = $request->header('X-Filename', 'thumbnail-' . time() . '.jpg');
+            $contentType = $request->header('X-Content-Type', 'image/jpeg');
+
+            if (empty($fileData)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No file data received'
+                ]);
+            }
+
+            // Generate unique filename in thumbnails folder
+            $blobPath = 'thumbnails/' . uniqid() . '-' . $filename;
+
+            $blobClient = new BlobClient($blobToken);
+
+            // Upload directly to Vercel Blob
+            $options = new CommonCreateBlobOptions(
+                access: 'public',
+                addRandomSuffix: false,
+                contentType: $contentType,
+            );
+
+            // Use the put method with the file data
+            $result = $blobClient->put($blobPath, $fileData, $options);
+
+            Log::info('Direct upload to Vercel Blob successful', ['path' => $blobPath, 'url' => $result->url]);
+
+            return response()->json([
+                'success' => true,
+                'blob_url' => $result->url,
+                'blob_path' => $blobPath
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to upload directly to Vercel Blob', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to upload: ' . $e->getMessage()
+            ]);
+        }
+    }
 }

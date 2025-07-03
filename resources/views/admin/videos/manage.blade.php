@@ -1027,52 +1027,96 @@
 
             const form = event.target;
             const videoId = form.getAttribute('data-video-id');
-            const formData = new FormData(form);
 
-            // Add the method override to form data
-            formData.append('_method', 'PUT');
+            // Show loading state
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            submitButton.disabled = true;
 
-            // Debug: Log what we're sending
-            console.log('Form data being sent:');
-            for (let [key, value] of formData.entries()) {
-                console.log(key + ': ' + value);
-            }
+            async function performUpdate() {
+                try {
+                    const formData = new FormData(form);
+                    const thumbnailFile = formData.get('thumbnail');
 
-            fetch(`/admin/videos/${videoId}`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: formData
-                })
-                .then(async response => {
+                    // If there's a thumbnail file, upload it to Vercel Blob first
+                    if (thumbnailFile && thumbnailFile.size > 0) {
+                        console.log('Uploading thumbnail to Vercel Blob...');
+
+                        // Upload directly to Vercel Blob
+                        const uploadResponse = await fetch('/admin/videos/direct-upload', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'X-Filename': thumbnailFile.name,
+                                'X-Content-Type': thumbnailFile.type || 'image/jpeg'
+                            },
+                            body: thumbnailFile
+                        });
+
+                        const uploadResult = await uploadResponse.json();
+
+                        if (!uploadResult.success) {
+                            throw new Error('Thumbnail upload failed: ' + uploadResult.error);
+                        }
+
+                        console.log('Thumbnail uploaded successfully:', uploadResult.blob_url);
+
+                        // Replace the file with the blob URL
+                        formData.delete('thumbnail');
+                        formData.set('thumbnail_blob_url', uploadResult.blob_url);
+                    }
+
+                    // Add the method override to form data
+                    formData.append('_method', 'PUT');
+
+                    // Debug: Log what we're sending
+                    console.log('Form data being sent:');
+                    for (let [key, value] of formData.entries()) {
+                        console.log(key + ': ' + (value instanceof File ? `[File: ${value.name}]` : value));
+                    }
+
+                    // Submit the form with blob URL instead of file
+                    const response = await fetch(`/admin/videos/${videoId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: formData
+                    });
+
                     // Check if response is JSON
                     const contentType = response.headers.get('content-type');
                     if (contentType && contentType.includes('application/json')) {
-                        return response.json();
+                        const data = await response.json();
+                        console.log('Response received:', data);
+
+                        if (data.success) {
+                            showAlert('success', 'Video updated successfully!');
+                            setTimeout(() => {
+                                bootstrap.Modal.getInstance(document.getElementById('editVideoModal')).hide();
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            showAlert('danger', data.message || data.error || 'Failed to update video');
+                        }
                     } else {
                         // If not JSON, it might be an error page
                         const text = await response.text();
                         console.error('Non-JSON response:', text);
                         throw new Error('Server returned non-JSON response');
                     }
-                })
-                .then(data => {
-                    console.log('Response received:', data);
-                    if (data.success) {
-                        showAlert('success', 'Video updated successfully!');
-                        setTimeout(() => {
-                            bootstrap.Modal.getInstance(document.getElementById('editVideoModal')).hide();
-                            window.location.reload();
-                        }, 1500);
-                    } else {
-                        showAlert('danger', data.message || data.error || 'Failed to update video');
-                    }
-                })
-                .catch(error => {
-                    showAlert('danger', 'Network error occurred: ' + error.message);
+                } catch (error) {
+                    showAlert('danger', 'Update failed: ' + error.message);
                     console.error('Update video failed:', error);
-                });
+                } finally {
+                    // Restore button state
+                    submitButton.innerHTML = originalText;
+                    submitButton.disabled = false;
+                }
+            }
+
+            performUpdate();
         }
 
         // Thumbnail management functions

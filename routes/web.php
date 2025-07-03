@@ -60,6 +60,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Token management
     Route::post('/admin/tokens/save-all', [VideoController::class, 'saveAllTokens'])->name('admin.tokens.save-all');
 
+    // Direct Vercel Blob upload endpoint
+    Route::post('/admin/videos/direct-upload', [VideoController::class, 'directUpload'])->name('admin.videos.direct-upload');
+
     // Testing and manual import
     Route::get('/admin/videos/test-connection', [VideoController::class, 'testConnection'])->name('admin.videos.test-connection');
     Route::post('/admin/videos/manual-import', [VideoController::class, 'manualImport'])->name('admin.videos.manual-import');
