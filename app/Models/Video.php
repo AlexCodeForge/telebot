@@ -176,7 +176,12 @@ class Video extends Model
      */
     public function getThumbnailUrl(): ?string
     {
-        // Check for uploaded thumbnail first (highest priority)
+        // Check for Vercel Blob URL first (cloud storage)
+        if ($this->thumbnail_blob_url) {
+            return $this->thumbnail_blob_url;
+        }
+
+        // Check for uploaded thumbnail (local storage fallback)
         if ($this->thumbnail_path) {
             return asset('storage/thumbnails/' . $this->thumbnail_path);
         }

@@ -56,6 +56,27 @@ After deployment:
 -   📊 **Purchase Tracking** - Track user purchases and delivery status
 -   🐳 **Docker Ready** - Complete containerized deployment solution
 -   🔒 **SSL Support** - Automatic HTTPS certificates via Let's Encrypt
+-   ☁️ **Vercel Blob Storage** - Serverless image storage for Vercel deployments (FREE)
+
+## ☁️ Vercel Deployment (Serverless)
+
+Deploy to Vercel for free serverless hosting:
+
+1. **Fork this repository** to your GitHub account
+2. **Connect to Vercel** and import your forked repository
+3. **Set up Vercel Blob Storage** for thumbnail uploads:
+   - Go to your Vercel project → Storage → Create Blob store
+   - Copy the `BLOB_READ_WRITE_TOKEN`
+   - Add it to your Vercel environment variables
+4. **Configure Environment Variables** in Vercel:
+   - `TELEGRAM_BOT_TOKEN` - Your bot token
+   - `STRIPE_KEY` - Your Stripe publishable key  
+   - `STRIPE_SECRET` - Your Stripe secret key
+   - `BLOB_READ_WRITE_TOKEN` - Your Vercel Blob token
+   - `DB_CONNECTION=sqlite` (or your database)
+5. **Deploy** and set your webhook to `https://yourapp.vercel.app/api/telegram/webhook`
+
+📖 **Detailed Setup**: See [docs/vercel-blob-setup.md](docs/vercel-blob-setup.md)
 
 ## 🛠️ Manual Development Setup
 

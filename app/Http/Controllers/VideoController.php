@@ -132,7 +132,7 @@ class VideoController extends Controller
                     ]);
                 }
 
-                $thumbnailName = time() . '_' . $video->id . '.' . $extension;
+                $thumbnailName = "thumbnails/" . time() . '_' . $video->id . '.' . $extension;
 
                 Log::info('Processing thumbnail upload', [
                     'original_name' => $thumbnailFile->getClientOriginalName(),
@@ -142,31 +142,40 @@ class VideoController extends Controller
                     'new_name' => $thumbnailName
                 ]);
 
-                // Delete old thumbnail if exists
-                if ($video->thumbnail_path) {
-                    $oldThumbnailPath = storage_path('app/public/thumbnails/' . $video->thumbnail_path);
-                    if (file_exists($oldThumbnailPath)) {
-                        unlink($oldThumbnailPath);
-                        Log::info('Old thumbnail deleted', ['path' => $oldThumbnailPath]);
+                // Delete old thumbnail from Vercel Blob if exists
+                if ($video->thumbnail_path && $video->thumbnail_blob_url) {
+                    try {
+                        $blobClient = new \VercelBlobPhp\Client(env('BLOB_READ_WRITE_TOKEN'));
+                        $blobClient->del([$video->thumbnail_blob_url]);
+                        Log::info('Old thumbnail deleted from Vercel Blob', ['url' => $video->thumbnail_blob_url]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to delete old thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
                     }
                 }
 
-                // Store new thumbnail using move method
-                $movedFile = $thumbnailFile->move(storage_path('app/public/thumbnails'), $thumbnailName);
+                // Store new thumbnail to Vercel Blob directly
+                $thumbnailContent = file_get_contents($thumbnailFile->getPathname());
+                $blobClient = new \VercelBlobPhp\Client(env('BLOB_READ_WRITE_TOKEN'));
 
-                if ($movedFile) {
-                    $updateData['thumbnail_path'] = $thumbnailName;
-                    // Clear thumbnail_url if uploading a file
-                    $updateData['thumbnail_url'] = null;
-                    Log::info('Thumbnail uploaded successfully', ['stored_as' => $thumbnailName, 'path' => $movedFile->getPathname()]);
-                } else {
-                    Log::error('Failed to store thumbnail file');
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Failed to upload thumbnail file.'
-                    ]);
-                }
-            } catch (Exception $e) {
+                $options = new \VercelBlobPhp\CommonCreateBlobOptions(
+                    addRandomSuffix: false,
+                    contentType: $thumbnailFile->getMimeType(),
+                );
+
+                $result = $blobClient->put($thumbnailName, $thumbnailContent, $options);
+                $publicUrl = $result->url;
+
+                $updateData['thumbnail_path'] = $thumbnailName;
+                $updateData['thumbnail_blob_url'] = $publicUrl;
+                // Clear thumbnail_url if uploading a file
+                $updateData['thumbnail_url'] = null;
+
+                Log::info('Thumbnail uploaded successfully to Vercel Blob', [
+                    'stored_as' => $thumbnailName,
+                    'url' => $publicUrl
+                ]);
+
+            } catch (\Exception $e) {
                 Log::error('Thumbnail upload error', ['error' => $e->getMessage()]);
                 return response()->json([
                     'success' => false,
@@ -195,12 +204,23 @@ class VideoController extends Controller
      */
     public function destroy(Video $video)
     {
-        // Delete thumbnail if exists
-        if ($video->thumbnail_path) {
+        // Delete thumbnail from Vercel Blob if exists
+        if ($video->thumbnail_blob_url) {
+            try {
+                $blobClient = new \VercelBlobPhp\Client(env('BLOB_READ_WRITE_TOKEN'));
+                $blobClient->del([$video->thumbnail_blob_url]);
+                Log::info('Thumbnail deleted from Vercel Blob', ['video_id' => $video->id, 'url' => $video->thumbnail_blob_url]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // Delete local thumbnail if exists (fallback for old videos)
+        if ($video->thumbnail_path && !$video->thumbnail_blob_url) {
             $thumbnailPath = storage_path('app/public/thumbnails/' . $video->thumbnail_path);
             if (file_exists($thumbnailPath)) {
                 unlink($thumbnailPath);
-                Log::info('Thumbnail deleted with video', ['video_id' => $video->id, 'path' => $thumbnailPath]);
+                Log::info('Local thumbnail deleted with video', ['video_id' => $video->id, 'path' => $thumbnailPath]);
             }
         }
 
