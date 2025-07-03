@@ -140,11 +140,19 @@ class VideoController extends Controller
             } catch (\Illuminate\Validation\ValidationException $e) {
                 Log::error('Validation failed', ['errors' => $e->errors(), 'video_id' => $video->id]);
 
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $e->errors()
-                ], 422);
+                if ($isJsonRequest) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => $e->errors()
+                    ], 422);
+                } else {
+                    // Traditional form submission - redirect back with errors
+                    return redirect()->route('admin.videos.manage')
+                        ->withErrors($e->errors())
+                        ->withInput()
+                        ->with('error', 'Validation failed. Please check your input.');
+                }
             }
 
             // Prepare update data
@@ -308,10 +316,16 @@ class VideoController extends Controller
 
             } catch (\Exception $e) {
                 Log::error('Thumbnail upload error', ['error' => $e->getMessage()]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error uploading thumbnail: ' . $e->getMessage()
-                ]);
+
+                if ($isJsonRequest) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error uploading thumbnail: ' . $e->getMessage()
+                    ]);
+                } else {
+                    return redirect()->route('admin.videos.manage')
+                        ->with('error', 'Error uploading thumbnail: ' . $e->getMessage());
+                }
             }
         }
 
@@ -320,11 +334,18 @@ class VideoController extends Controller
 
             Log::info('Video updated successfully', ['video_id' => $video->id, 'updates' => array_keys($updateData)]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Video updated successfully!',
-                'video' => $video->fresh()
-            ]);
+            // Return appropriate response based on request type
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Video updated successfully!',
+                    'video' => $video->fresh()
+                ]);
+            } else {
+                // Traditional form submission - redirect with success message
+                return redirect()->route('admin.videos.manage')
+                    ->with('success', 'Video updated successfully!');
+            }
 
         } catch (\Exception $e) {
             Log::error('Video update failed', [
@@ -333,10 +354,17 @@ class VideoController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update video: ' . $e->getMessage()
-            ], 500);
+            // Return appropriate error response based on request type
+            if ($isJsonRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update video: ' . $e->getMessage()
+                ], 500);
+            } else {
+                // Traditional form submission - redirect with error message
+                return redirect()->route('admin.videos.manage')
+                    ->with('error', 'Failed to update video: ' . $e->getMessage());
+            }
         }
     }
 

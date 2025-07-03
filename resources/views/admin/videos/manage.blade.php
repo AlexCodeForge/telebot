@@ -557,7 +557,19 @@
                     <h5 class="modal-title">Edit Video Thumbnail</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="editVideoThumbnailForm" onsubmit="updateVideoThumbnail(event)" action="javascript:void(0)">
+                <form id="editVideoThumbnailForm" method="POST" action="" enctype="multipart/form-data" onsubmit="prepareTraditionalThumbnailSubmission(event)">
+                    @csrf
+                    @method('PUT')
+
+                    <!-- Hidden fields to satisfy validation requirements -->
+                    <input type="hidden" id="hidden-title" name="title" value="">
+                    <input type="hidden" id="hidden-description" name="description" value="">
+                    <input type="hidden" id="hidden-price" name="price" value="">
+                    <input type="hidden" id="hidden-blur-intensity" name="blur_intensity" value="">
+                    <input type="hidden" id="hidden-show-blurred" name="show_blurred" value="">
+                    <input type="hidden" id="hidden-allow-preview" name="allow_preview" value="">
+                    <input type="hidden" id="hidden-blob-url" name="thumbnail_blob_url" value="">
+
                     <div class="modal-body">
                         <h6 class="fw-bold mb-3"><i class="fas fa-image text-success"></i> Thumbnail Management</h6>
 
@@ -599,8 +611,7 @@
                             </div>
                         </div>
 
-                        <!-- Hidden fields for blob storage -->
-                        <input type="hidden" name="thumbnail_blob_url" id="edit-thumbnail-blob-url" value="">
+
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -1017,7 +1028,6 @@
         function editVideoThumbnail(id, thumbnailPath, thumbnailUrl, thumbnailBlobUrl, title, description, price, blurIntensity, showBlurred, allowPreview) {
             // Set thumbnail fields
             document.getElementById('edit-thumbnail-url').value = thumbnailUrl || '';
-            document.getElementById('edit-thumbnail-blob-url').value = thumbnailBlobUrl || '';
 
             // Show current thumbnail if exists
             const currentThumbnailPreview = document.getElementById('current-thumbnail-preview');
@@ -1034,15 +1044,18 @@
             document.getElementById('new-thumbnail-preview').style.display = 'none';
             document.getElementById('edit-thumbnail').value = '';
 
-            // Store the video ID and current data for submission
+            // Set form action for traditional submission
             const form = document.getElementById('editVideoThumbnailForm');
-            form.setAttribute('data-video-id', id);
-            form.setAttribute('data-video-title', title);
-            form.setAttribute('data-video-description', description);
-            form.setAttribute('data-video-price', price);
-            form.setAttribute('data-video-blur-intensity', blurIntensity || 10);
-            form.setAttribute('data-video-show-blurred', showBlurred === true || showBlurred === 'true' ? '1' : '0');
-            form.setAttribute('data-video-allow-preview', allowPreview === true || allowPreview === 'true' ? '1' : '0');
+            form.action = `/admin/videos/${id}`;
+
+            // Populate hidden fields with current video data for validation
+            document.getElementById('hidden-title').value = title || '';
+            document.getElementById('hidden-description').value = description || '';
+            document.getElementById('hidden-price').value = price || '0';
+            document.getElementById('hidden-blur-intensity').value = blurIntensity || '10';
+            document.getElementById('hidden-show-blurred').value = showBlurred === true || showBlurred === 'true' ? '1' : '0';
+            document.getElementById('hidden-allow-preview').value = allowPreview === true || allowPreview === 'true' ? '1' : '0';
+            document.getElementById('hidden-blob-url').value = thumbnailBlobUrl || '';
 
             const modal = new bootstrap.Modal(document.getElementById('editVideoThumbnailModal'));
             modal.show();
@@ -1140,57 +1153,26 @@
             performUpdate();
         }
 
-        function updateVideoThumbnail(event) {
-            // CRITICAL: Prevent any form submission to avoid FormData processing
+        function prepareTraditionalThumbnailSubmission(event) {
+            // This function prepares the thumbnail form for traditional submission
             event.preventDefault();
-            event.stopPropagation();
 
             const form = event.target;
-            const videoId = form.getAttribute('data-video-id');
-
-            // Show loading state
             const submitButton = form.querySelector('button[type="submit"]');
             const originalText = submitButton.innerHTML;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            const thumbnailFileEl = form.querySelector('[name="thumbnail"]');
+            const thumbnailFile = thumbnailFileEl && thumbnailFileEl.files ? thumbnailFileEl.files[0] : null;
+
+            // Show loading state
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             submitButton.disabled = true;
 
-            async function performUpdate() {
+            async function handleSubmission() {
                 try {
-                    // Collect form data manually (NO FormData to avoid serverless issues)
-                    const thumbnailUrlEl = form.querySelector('[name="thumbnail_url"]');
-                    const thumbnailBlobUrlEl = form.querySelector('[name="thumbnail_blob_url"]');
-
-                    // Get current video data from stored attributes to satisfy validation
-                    const currentTitle = form.getAttribute('data-video-title') || '';
-                    const currentDescription = form.getAttribute('data-video-description') || '';
-                    const currentPrice = form.getAttribute('data-video-price') || '0';
-                    const currentBlurIntensity = form.getAttribute('data-video-blur-intensity') || '10';
-                    const currentShowBlurred = form.getAttribute('data-video-show-blurred') || '0';
-                    const currentAllowPreview = form.getAttribute('data-video-allow-preview') || '0';
-
-                    const formData = {
-                        // Include required fields from current video data
-                        title: currentTitle,
-                        description: currentDescription,
-                        price: currentPrice,
-                        blur_intensity: currentBlurIntensity,
-                        show_blurred: currentShowBlurred,
-                        allow_preview: currentAllowPreview,
-                        // Thumbnail-specific fields
-                        thumbnail_url: thumbnailUrlEl ? thumbnailUrlEl.value : '',
-                        thumbnail_blob_url: thumbnailBlobUrlEl ? thumbnailBlobUrlEl.value : '',
-                        _method: 'PUT',
-                        _token: '{{ csrf_token() }}'
-                    };
-
-                    const thumbnailFileEl = form.querySelector('[name="thumbnail"]');
-                    const thumbnailFile = thumbnailFileEl && thumbnailFileEl.files ? thumbnailFileEl.files[0] : null;
-
-                    // Handle thumbnail upload to Vercel Blob if a file is selected
+                    // If there's a file to upload, upload to Vercel Blob first
                     if (thumbnailFile && thumbnailFile.size > 0) {
                         console.log('Uploading thumbnail to Vercel Blob...');
 
-                        // Upload directly to Vercel Blob
                         const uploadResponse = await fetch('/admin/videos/direct-upload', {
                             method: 'POST',
                             headers: {
@@ -1209,59 +1191,24 @@
 
                         console.log('Thumbnail uploaded successfully:', uploadResult.blob_url);
 
-                        // Add the blob URL to our data
-                        formData.thumbnail_blob_url = uploadResult.blob_url;
+                        // Update the hidden blob URL field
+                        document.getElementById('hidden-blob-url').value = uploadResult.blob_url;
                     }
 
-                    console.log('Submitting thumbnail update:', formData);
+                    // Now submit the form traditionally (this will cause a page reload)
+                    form.submit();
 
-                    // Submit as JSON instead of FormData to avoid serverless middleware issues
-                    const response = await fetch(`/admin/videos/${videoId}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify(formData)
-                    });
-
-                    const responseText = await response.text();
-                    console.log('Raw response:', responseText);
-
-                    let data;
-                    try {
-                        data = JSON.parse(responseText);
-                    } catch (parseError) {
-                        console.error('JSON parse error:', parseError);
-                        if (responseText.includes('500') || responseText.includes('Internal Server Error')) {
-                            throw new Error('Server error occurred. Please try again or contact support.');
-                        }
-                        throw new Error('Invalid server response. Please try again.');
-                    }
-
-                    if (data.success) {
-                        showAlert('success', 'Video thumbnail updated successfully!');
-                        setTimeout(() => {
-                            bootstrap.Modal.getInstance(document.getElementById('editVideoThumbnailModal')).hide();
-                            window.location.reload();
-                        }, 1500);
-                    } else {
-                        const errorMsg = data.message || data.error || 'Failed to update video thumbnail';
-                        showAlert('danger', errorMsg);
-                    }
                 } catch (error) {
-                    showAlert('danger', 'Update failed: ' + error.message);
-                    console.error('Update video thumbnail failed:', error);
-                } finally {
-                    // Restore button state
+                    showAlert('danger', 'Upload failed: ' + error.message);
+                    console.error('Thumbnail upload failed:', error);
+
+                    // Restore button state on error
                     submitButton.innerHTML = originalText;
                     submitButton.disabled = false;
                 }
             }
 
-            performUpdate();
+            handleSubmission();
         }
 
         // Thumbnail management functions
