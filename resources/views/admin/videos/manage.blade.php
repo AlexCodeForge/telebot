@@ -335,7 +335,7 @@
                                                                 </button>
                                                                 <!-- Edit Thumbnail Button -->
                                                                 <button type="button" class="btn btn-outline-info" title="Edit Thumbnail"
-                                                                    onclick="editVideoThumbnail({{ $video->id }}, '{{ $video->getThumbnailUrl() }}', '{{ $video->thumbnail_url }}', '{{ $video->thumbnail_blob_url }}')">
+                                                                    onclick="editVideoThumbnail({{ $video->id }}, '{{ $video->getThumbnailUrl() }}', '{{ $video->thumbnail_url }}', '{{ $video->thumbnail_blob_url }}', '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }}, {{ $video->blur_intensity }}, {{ $video->show_blurred_thumbnail ? 'true' : 'false' }}, {{ $video->allow_preview ? 'true' : 'false' }})">
                                                                     <i class="fas fa-image"></i>
                                                                 </button>
                                                                 @if ($syncUserTelegramId)
@@ -1014,7 +1014,7 @@
         }
 
         // Edit Video Thumbnail Functions
-        function editVideoThumbnail(id, thumbnailPath, thumbnailUrl, thumbnailBlobUrl) {
+        function editVideoThumbnail(id, thumbnailPath, thumbnailUrl, thumbnailBlobUrl, title, description, price, blurIntensity, showBlurred, allowPreview) {
             // Set thumbnail fields
             document.getElementById('edit-thumbnail-url').value = thumbnailUrl || '';
             document.getElementById('edit-thumbnail-blob-url').value = thumbnailBlobUrl || '';
@@ -1034,12 +1034,21 @@
             document.getElementById('new-thumbnail-preview').style.display = 'none';
             document.getElementById('edit-thumbnail').value = '';
 
-            // Store the video ID for submission
-            document.getElementById('editVideoThumbnailForm').setAttribute('data-video-id', id);
+            // Store the video ID and current data for submission
+            const form = document.getElementById('editVideoThumbnailForm');
+            form.setAttribute('data-video-id', id);
+            form.setAttribute('data-video-title', title);
+            form.setAttribute('data-video-description', description);
+            form.setAttribute('data-video-price', price);
+            form.setAttribute('data-video-blur-intensity', blurIntensity || 10);
+            form.setAttribute('data-video-show-blurred', showBlurred === true || showBlurred === 'true' ? '1' : '0');
+            form.setAttribute('data-video-allow-preview', allowPreview === true || allowPreview === 'true' ? '1' : '0');
 
             const modal = new bootstrap.Modal(document.getElementById('editVideoThumbnailModal'));
             modal.show();
         }
+
+
 
         function updateVideoDetails(event) {
             // CRITICAL: Prevent any form submission to avoid FormData processing
@@ -1151,7 +1160,23 @@
                     const thumbnailUrlEl = form.querySelector('[name="thumbnail_url"]');
                     const thumbnailBlobUrlEl = form.querySelector('[name="thumbnail_blob_url"]');
 
+                    // Get current video data from stored attributes to satisfy validation
+                    const currentTitle = form.getAttribute('data-video-title') || '';
+                    const currentDescription = form.getAttribute('data-video-description') || '';
+                    const currentPrice = form.getAttribute('data-video-price') || '0';
+                    const currentBlurIntensity = form.getAttribute('data-video-blur-intensity') || '10';
+                    const currentShowBlurred = form.getAttribute('data-video-show-blurred') || '0';
+                    const currentAllowPreview = form.getAttribute('data-video-allow-preview') || '0';
+
                     const formData = {
+                        // Include required fields from current video data
+                        title: currentTitle,
+                        description: currentDescription,
+                        price: currentPrice,
+                        blur_intensity: currentBlurIntensity,
+                        show_blurred: currentShowBlurred,
+                        allow_preview: currentAllowPreview,
+                        // Thumbnail-specific fields
                         thumbnail_url: thumbnailUrlEl ? thumbnailUrlEl.value : '',
                         thumbnail_blob_url: thumbnailBlobUrlEl ? thumbnailBlobUrlEl.value : '',
                         _method: 'PUT',
