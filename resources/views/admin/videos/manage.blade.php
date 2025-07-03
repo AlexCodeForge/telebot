@@ -403,8 +403,10 @@
                                         class="text-decoration-none">Stripe Dashboard → Webhooks</a> (optional but
                                     recommended for security)</li>
                                 <li><strong>Vercel Blob Token:</strong> Get from <a href="https://vercel.com/dashboard"
-                                        target="_blank" class="text-decoration-none">Vercel Dashboard → Storage → Blob</a>
+                                        target="_blank" class="text-decoration-none">Vercel Dashboard → Storage → Blob → Settings</a>
                                     (required for thumbnail uploads on serverless deployments)</li>
+                                <li><strong>Vercel Blob Store ID:</strong> Found in your Vercel Blob store settings (starts with "store_")</li>
+                                <li><strong>Vercel Blob Base URL:</strong> The public URL of your blob store (like https://yourstore.public.blob.vercel-storage.com)</li>
                             </ul>
                         </div>
 
@@ -462,6 +464,33 @@
                                 placeholder="vercel_blob_rw_..."
                                 value="{{ $vercelBlobToken ? str_repeat('*', 40) . substr($vercelBlobToken, -10) : '' }}">
                             <div class="form-text">Required for thumbnail uploads on Vercel (serverless deployment)</div>
+                        </div>
+
+                        <!-- Vercel Blob Store Configuration -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="modal_vercel_blob_store_id" class="form-label">
+                                        <i class="fas fa-database text-info"></i> Vercel Blob Store ID
+                                    </label>
+                                    <input type="text" class="form-control" id="modal_vercel_blob_store_id"
+                                        placeholder="store_lplRsSrAbxTyf1Og"
+                                        value="{{ Setting::get('vercel_blob_store_id') }}">
+                                    <div class="form-text">Get from Vercel Dashboard → Storage → Blob → Your Store</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="modal_vercel_blob_base_url" class="form-label">
+                                        <i class="fas fa-link text-info"></i> Vercel Blob Base URL
+                                    </label>
+                                    <input type="url" class="form-control" id="modal_vercel_blob_base_url"
+                                        placeholder="https://lplrssrabxtyf1og.public.blob.vercel-storage.com"
+                                        value="{{ Setting::get('vercel_blob_base_url') }}">
+                                    <div class="form-text">The base URL for your Vercel Blob store</div>
+                                </div>
+                            </div>
+                        </div>
             </div>
         </form>
                 </div>
@@ -957,9 +986,11 @@
             const stripeSecret = document.getElementById('modal_stripe_secret').value.trim();
             const stripeWebhookSecret = document.getElementById('modal_stripe_webhook_secret').value.trim();
             const vercelBlobToken = document.getElementById('modal_vercel_blob_token').value.trim();
+            const vercelBlobStoreId = document.getElementById('modal_vercel_blob_store_id').value.trim();
+            const vercelBlobBaseUrl = document.getElementById('modal_vercel_blob_base_url').value.trim();
 
             // Validate required fields
-            if (!telegramToken && !stripeKey && !stripeSecret && !stripeWebhookSecret && !vercelBlobToken) {
+            if (!telegramToken && !stripeKey && !stripeSecret && !stripeWebhookSecret && !vercelBlobToken && !vercelBlobStoreId && !vercelBlobBaseUrl) {
                 showAlert('warning', 'Please enter at least one token to save');
                 return;
             }
@@ -971,6 +1002,8 @@
             if (stripeWebhookSecret && !stripeWebhookSecret.includes('*')) tokens.stripe_webhook_secret =
                 stripeWebhookSecret;
             if (vercelBlobToken && !vercelBlobToken.includes('*')) tokens.vercel_blob_token = vercelBlobToken;
+            if (vercelBlobStoreId) tokens.vercel_blob_store_id = vercelBlobStoreId;
+            if (vercelBlobBaseUrl) tokens.vercel_blob_base_url = vercelBlobBaseUrl;
 
             fetch('{{ route('admin.tokens.save-all') }}', {
                     method: 'POST',

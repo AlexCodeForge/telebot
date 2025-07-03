@@ -187,9 +187,22 @@ class VideoController extends Controller
             try {
                 $blobUrl = $request->input('thumbnail_blob_url');
 
-                // Validate that this is a valid Vercel Blob URL
-                if (!str_contains($blobUrl, '.public.blob.vercel-storage.com')) {
-                    throw new \Exception('Invalid blob URL - not from Vercel Blob storage');
+                // Get configurable blob domain from settings
+                $blobBaseUrl = Setting::get('vercel_blob_base_url');
+                $isValidBlobUrl = false;
+
+                if (!empty($blobBaseUrl)) {
+                    // Extract domain from configured base URL
+                    $parsedBaseUrl = parse_url($blobBaseUrl);
+                    $configuredDomain = $parsedBaseUrl['host'] ?? '';
+                    $isValidBlobUrl = !empty($configuredDomain) && str_contains($blobUrl, $configuredDomain);
+                } else {
+                    // Fallback to original hardcoded validation for backward compatibility
+                    $isValidBlobUrl = str_contains($blobUrl, '.public.blob.vercel-storage.com');
+                }
+
+                if (!$isValidBlobUrl) {
+                    throw new \Exception('Invalid blob URL - not from configured Vercel Blob storage');
                 }
 
                 // Delete old thumbnail from Vercel Blob if exists
@@ -634,6 +647,35 @@ class VideoController extends Controller
                         } catch (\Exception $e) {
                             $errors[] = 'Vercel Blob token is invalid or doesn\'t have proper permissions: ' . $e->getMessage();
                         }
+                    }
+                }
+            }
+
+            // Validate and save Vercel Blob Store ID
+            if (isset($tokens['vercel_blob_store_id'])) {
+                $storeId = trim($tokens['vercel_blob_store_id']);
+                if (!empty($storeId)) {
+                    if (!str_starts_with($storeId, 'store_')) {
+                        $errors[] = 'Invalid Vercel Blob Store ID format. Should start with store_';
+                    } else {
+                        Setting::set('vercel_blob_store_id', $storeId);
+                        $savedTokens[] = 'Vercel Blob Store ID';
+                    }
+                }
+            }
+
+            // Validate and save Vercel Blob Base URL
+            if (isset($tokens['vercel_blob_base_url'])) {
+                $baseUrl = trim($tokens['vercel_blob_base_url']);
+                if (!empty($baseUrl)) {
+                    // Validate URL format
+                    if (!filter_var($baseUrl, FILTER_VALIDATE_URL)) {
+                        $errors[] = 'Invalid Vercel Blob Base URL format. Should be a valid URL like https://yourstore.public.blob.vercel-storage.com';
+                    } elseif (!str_contains($baseUrl, 'blob.vercel-storage.com')) {
+                        $errors[] = 'Invalid Vercel Blob Base URL. Should contain blob.vercel-storage.com';
+                    } else {
+                        Setting::set('vercel_blob_base_url', $baseUrl);
+                        $savedTokens[] = 'Vercel Blob Base URL';
                     }
                 }
             }
