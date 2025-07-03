@@ -162,8 +162,14 @@ class VideoController extends Controller
             if ($request->has('title')) $updateData['title'] = $request->input('title');
             if ($request->has('description')) $updateData['description'] = $request->input('description');
             if ($request->has('price')) $updateData['price'] = (float) $request->input('price');
-            if ($request->has('thumbnail_url')) $updateData['thumbnail_url'] = $request->input('thumbnail_url');
             if ($request->has('blur_intensity')) $updateData['blur_intensity'] = (int) $request->input('blur_intensity');
+
+            // Handle external thumbnail URL - store it in thumbnail_path since thumbnail_url column doesn't exist
+            if ($request->has('thumbnail_url') && !empty($request->input('thumbnail_url'))) {
+                $updateData['thumbnail_path'] = $request->input('thumbnail_url');
+                // Clear blob URL when using external URL
+                $updateData['thumbnail_blob_url'] = null;
+            }
 
             // Boolean fields with proper conversion
             if ($request->has('show_blurred')) {
@@ -206,7 +212,6 @@ class VideoController extends Controller
 
                 $updateData['thumbnail_blob_url'] = $blobUrl;
                 $updateData['thumbnail_path'] = $thumbnailPath;
-                $updateData['thumbnail_url'] = null; // Clear external URL if using blob
 
                 Log::info('Direct blob upload processed', [
                     'blob_url' => $blobUrl,
@@ -306,8 +311,6 @@ class VideoController extends Controller
 
                     $updateData['thumbnail_path'] = $thumbnailName;
                 $updateData['thumbnail_blob_url'] = $publicUrl;
-                    // Clear thumbnail_url if uploading a file
-                    $updateData['thumbnail_url'] = null;
 
                 Log::info('Thumbnail uploaded successfully to Vercel Blob', [
                     'stored_as' => $thumbnailName,
