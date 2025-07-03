@@ -57,11 +57,11 @@
                         </a>
                     </li>
                     @if($bot['is_configured'])
-                        <li class="nav-item">
+                    <li class="nav-item">
                             <a class="nav-link" href="{{ $bot['url'] }}" target="_blank">
-                                <i class="fab fa-telegram"></i> Start Bot Chat
-                            </a>
-                        </li>
+                            <i class="fab fa-telegram"></i> Start Bot Chat
+                        </a>
+                    </li>
                     @else
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('login') }}" title="Configure bot in admin panel">

@@ -33,57 +33,52 @@
                             </div>
 
                             <!-- Token Status Summary -->
-                            <div class="row g-3">
-            <div class="col-md-4">
+                            <div class="row g-2">
+                                <div class="col-md-3 col-sm-6">
                                     <div class="card h-100 {{ $telegramToken ? 'border-success' : 'border-danger' }}">
-                                        <div class="card-body text-center">
-                                            <i
-                                                class="fab fa-telegram-plane fa-2x {{ $telegramToken ? 'text-success' : 'text-danger' }} mb-2"></i>
-                                            <h6 class="card-title">Telegram Bot</h6>
-                                            <p class="card-text text-muted">
-                                                {{ $telegramToken ? 'Configured' : 'Not Configured' }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                                    <div
-                                        class="card h-100 {{ $stripeKey && $stripeSecret ? 'border-success' : 'border-danger' }}">
-                                        <div class="card-body text-center">
-                                            <i
-                                                class="fab fa-stripe fa-2x {{ $stripeKey && $stripeSecret ? 'text-success' : 'text-danger' }} mb-2"></i>
-                                            <h6 class="card-title">Stripe Payments</h6>
-                                            <p class="card-text text-muted">
-                                                {{ $stripeKey && $stripeSecret ? 'Configured' : 'Not Configured' }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                                    <div
-                                        class="card h-100 {{ $stripeWebhookSecret ? 'border-success' : 'border-warning' }}">
-                                        <div class="card-body text-center">
-                                            <i
-                                                class="fas fa-shield-alt fa-2x {{ $stripeWebhookSecret ? 'text-success' : 'text-warning' }} mb-2"></i>
-                                            <h6 class="card-title">Webhook Security</h6>
-                                            <p class="card-text text-muted">
-                                                {{ $stripeWebhookSecret ? 'Secured' : 'Basic Mode' }}</p>
+                                        <div class="card-body text-center py-3">
+                                            <i class="fab fa-telegram-plane fa-lg {{ $telegramToken ? 'text-success' : 'text-danger' }} mb-1"></i>
+                                            <h6 class="card-title mb-1 small">Telegram Bot</h6>
+                                            <p class="card-text text-muted small mb-0">
+                                                {{ $telegramToken ? 'Configured' : 'Not Configured' }}
+                                            </p>
                                         </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                                    <div
-                                        class="card h-100 {{ $vercelBlobToken ? 'border-success' : 'border-danger' }}">
-                                        <div class="card-body text-center">
-                                            <i
-                                                class="fas fa-cloud-upload-alt fa-2x {{ $vercelBlobToken ? 'text-success' : 'text-danger' }} mb-2"></i>
-                                            <h6 class="card-title">Vercel Blob Storage</h6>
-                                            <p class="card-text text-muted">
-                                                {{ $vercelBlobToken ? 'Configured' : 'Not Configured' }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card h-100 {{ $stripeKey && $stripeSecret ? 'border-success' : 'border-danger' }}">
+                                        <div class="card-body text-center py-3">
+                                            <i class="fab fa-stripe fa-lg {{ $stripeKey && $stripeSecret ? 'text-success' : 'text-danger' }} mb-1"></i>
+                                            <h6 class="card-title mb-1 small">Stripe Payments</h6>
+                                            <p class="card-text text-muted small mb-0">
+                                                {{ $stripeKey && $stripeSecret ? 'Configured' : 'Not Configured' }}
+                                            </p>
                                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card h-100 {{ $stripeWebhookSecret ? 'border-success' : 'border-warning' }}">
+                                        <div class="card-body text-center py-3">
+                                            <i class="fas fa-shield-alt fa-lg {{ $stripeWebhookSecret ? 'text-success' : 'text-warning' }} mb-1"></i>
+                                            <h6 class="card-title mb-1 small">Webhook Security</h6>
+                                            <p class="card-text text-muted small mb-0">
+                                                {{ $stripeWebhookSecret ? 'Secured' : 'Basic Mode' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card h-100 {{ $vercelBlobToken ? 'border-success' : 'border-danger' }}">
+                                        <div class="card-body text-center py-3">
+                                            <i class="fas fa-cloud-upload-alt fa-lg {{ $vercelBlobToken ? 'text-success' : 'text-danger' }} mb-1"></i>
+                                            <h6 class="card-title mb-1 small">Vercel Blob Storage</h6>
+                                            <p class="card-text text-muted small mb-0">
+                                                {{ $vercelBlobToken ? 'Configured' : 'Not Configured' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                         {{-- Success/Error Messages --}}
                         @if (session('success'))

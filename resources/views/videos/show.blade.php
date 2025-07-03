@@ -68,17 +68,17 @@
 
                                         @if($bot['is_configured'])
                                             <a href="{{ $bot['url'] }}?start=getvideo_{{ $video->id }}" target="_blank" class="btn btn-success btn-lg mb-3">
-                                                <i class="fab fa-telegram me-2"></i>Get Free Video Now
-                                            </a>
+                                            <i class="fab fa-telegram me-2"></i>Get Free Video Now
+                                        </a>
 
-                                            <div class="mt-3">
-                                                <small class="text-muted">
-                                                    <strong>Manual Steps:</strong><br>
+                                        <div class="mt-3">
+                                            <small class="text-muted">
+                                                <strong>Manual Steps:</strong><br>
                                                     1. Start chat with <a href="{{ $bot['url'] }}" target="_blank">{{ $bot['username'] }}</a><br>
-                                                    2. Send command: <code>/getvideo {{ $video->id }}</code><br>
-                                                    3. Get your video instantly!
-                                                </small>
-                                            </div>
+                                                2. Send command: <code>/getvideo {{ $video->id }}</code><br>
+                                                3. Get your video instantly!
+                                            </small>
+                                        </div>
                                         @else
                                             <div class="alert alert-warning">
                                                 <i class="fas fa-cog"></i> <strong>Bot Setup Required</strong><br>

@@ -99,8 +99,8 @@
                                         <div class="mt-3 text-center">
                                             @if($bot['is_configured'])
                                                 <a href="{{ $bot['url'] }}?start=getvideo_{{ $purchase->video_id }}" target="_blank" class="btn btn-success btn-lg">
-                                                    <i class="fab fa-telegram me-2"></i>Get Your Video Now
-                                                </a>
+                                                <i class="fab fa-telegram me-2"></i>Get Your Video Now
+                                            </a>
                                             @else
                                                 <a href="{{ route('login') }}" class="btn btn-warning btn-lg">
                                                     <i class="fas fa-cog me-2"></i>Bot Setup Required
@@ -127,8 +127,8 @@
                                             <div class="mt-3">
                                                 @if($bot['is_configured'])
                                                     <a href="{{ $bot['url'] }}" target="_blank" class="btn btn-success">
-                                                        <i class="fab fa-telegram me-2"></i>Open Bot Chat
-                                                    </a>
+                                                    <i class="fab fa-telegram me-2"></i>Open Bot Chat
+                                                </a>
                                                 @else
                                                     <a href="{{ route('login') }}" class="btn btn-warning">
                                                         <i class="fas fa-cog me-2"></i>Setup Required

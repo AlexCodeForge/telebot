@@ -151,10 +151,9 @@ class VideoController extends Controller
                     try {
                         $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
                         $blobClient = new BlobClient($blobToken);
-                        // Extract blob name from URL for deletion
-                        $pathToDelete = str_replace('thumbnails/', '', $video->thumbnail_path);
-                        $blobClient->del([$pathToDelete]);
-                        Log::info('Old thumbnail deleted from Vercel Blob', ['path' => $pathToDelete]);
+                        // Use the full blob URL for deletion (del method expects URLs, not paths)
+                        $blobClient->del([$video->thumbnail_blob_url]);
+                        Log::info('Old thumbnail deleted from Vercel Blob', ['url' => $video->thumbnail_blob_url]);
                     } catch (\Exception $e) {
                         Log::warning('Failed to delete old thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
                     }
@@ -177,6 +176,7 @@ class VideoController extends Controller
                 }
 
                 $options = new CommonCreateBlobOptions(
+                    access: 'public',
                     addRandomSuffix: false,
                     contentType: $thumbnailFile->getMimeType() ?: 'image/jpeg',
                 );
@@ -196,15 +196,15 @@ class VideoController extends Controller
 
                 $publicUrl = $result->url;
 
-                $updateData['thumbnail_path'] = $thumbnailName;
+                    $updateData['thumbnail_path'] = $thumbnailName;
                 $updateData['thumbnail_blob_url'] = $publicUrl;
-                // Clear thumbnail_url if uploading a file
-                $updateData['thumbnail_url'] = null;
+                    // Clear thumbnail_url if uploading a file
+                    $updateData['thumbnail_url'] = null;
 
                 Log::info('Thumbnail uploaded successfully to Vercel Blob', [
                     'stored_as' => $thumbnailName,
                     'url' => $publicUrl
-                ]);
+                    ]);
 
             } catch (\Exception $e) {
                 Log::error('Thumbnail upload error', ['error' => $e->getMessage()]);
@@ -240,10 +240,9 @@ class VideoController extends Controller
             try {
                 $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
                 $blobClient = new BlobClient($blobToken);
-                // Extract blob name from path for deletion
-                $pathToDelete = str_replace('thumbnails/', '', $video->thumbnail_path);
-                $blobClient->del([$pathToDelete]);
-                Log::info('Thumbnail deleted from Vercel Blob', ['video_id' => $video->id, 'path' => $pathToDelete]);
+                // Use the full blob URL for deletion (del method expects URLs, not paths)
+                $blobClient->del([$video->thumbnail_blob_url]);
+                Log::info('Thumbnail deleted from Vercel Blob', ['video_id' => $video->id, 'url' => $video->thumbnail_blob_url]);
             } catch (\Exception $e) {
                 Log::warning('Failed to delete thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
             }
@@ -421,7 +420,7 @@ class VideoController extends Controller
                             $bot = $botService->setupBotFromToken($token);
 
                             // Also save to settings for backward compatibility
-                            Setting::set('telegram_bot_token', $token);
+                        Setting::set('telegram_bot_token', $token);
                             $savedTokens[] = "Telegram Bot Token (@{$bot->username})";
                         } catch (\Exception $e) {
                             $errors[] = 'Failed to setup bot: ' . $e->getMessage();

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('videos', function (Blueprint $table) {
             // Replace the existing thumbnail_url with more comprehensive fields (removed ->after() to avoid PostgreSQL issues)
             if (Schema::hasColumn('videos', 'thumbnail_url')) {
-                $table->dropColumn('thumbnail_url');
+            $table->dropColumn('thumbnail_url');
             }
 
             // Add new thumbnail fields
