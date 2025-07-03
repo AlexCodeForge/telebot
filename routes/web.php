@@ -31,14 +31,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Admin-only routes
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('/dashboard', function () {
-        // Simple admin check
-        $user = Auth::user();
-        if (!$user || !$user->is_admin || $user->email !== 'admin@telebot.local') {
-            Auth::logout();
-            return redirect()->route('login')->with('error', 'Access denied. Admin privileges required.');
-        }
         return redirect()->route('admin.videos.manage');
     })->name('dashboard');
 

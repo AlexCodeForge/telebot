@@ -38,11 +38,6 @@ class VideoController extends Controller
      */
     public function manage()
     {
-        // Simple admin check
-        if ($redirect = $this->requireAdmin()) {
-            return $redirect;
-        }
-
         try {
             $videos = Video::orderBy('created_at', 'desc')->paginate(15);
 
@@ -92,11 +87,6 @@ class VideoController extends Controller
      */
     public function update(Request $request, Video $video)
     {
-        // CRITICAL: Admin check first!
-        if ($redirect = $this->requireAdmin()) {
-            return $redirect;
-        }
-
         try {
             // Enhanced JSON content type detection
             $isJsonRequest = $request->isJson() ||
@@ -355,11 +345,6 @@ class VideoController extends Controller
      */
     public function destroy(Video $video)
     {
-        // Admin check
-        if ($redirect = $this->requireAdmin()) {
-            return $redirect;
-        }
-
         // Delete thumbnail from Vercel Blob if exists
         if ($video->thumbnail_blob_url) {
             try {
@@ -1647,11 +1632,6 @@ class VideoController extends Controller
      */
     public function directUpload(Request $request)
     {
-        // Admin check
-        if ($redirect = $this->requireAdmin()) {
-            return $redirect;
-        }
-
         try {
             $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
             if (empty($blobToken)) {
