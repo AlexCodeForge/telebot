@@ -31,7 +31,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Admin-only routes
-Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+Route::middleware(['auth', 'verified', \App\Http\Middleware\AdminMiddleware::class])->group(function () {
     Route::get('/dashboard', function () {
         return redirect()->route('admin.videos.manage');
     })->name('dashboard');
