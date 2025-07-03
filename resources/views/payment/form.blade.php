@@ -95,8 +95,8 @@
                     </form>
 
                     <div class="text-center mt-3">
-                        <a href="{{ route('videos.show', $video) }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Video
+                        <a href="{{ route('videos.index') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Videos
                         </a>
                     </div>
                 </div>
