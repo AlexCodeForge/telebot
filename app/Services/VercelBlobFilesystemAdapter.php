@@ -202,22 +202,8 @@ class VercelBlobFilesystemAdapter implements FilesystemAdapter
             return $this->blobs[$path]->url;
         }
 
-        // Get configurable base URL from settings with error handling
-        $baseUrl = null;
-        try {
-            $baseUrl = \App\Models\Setting::get('vercel_blob_base_url');
-        } catch (\Exception $e) {
-            // Database/table might not exist yet, use fallback
-            $baseUrl = null;
-        }
-
-        if (empty($baseUrl)) {
-            // Fallback to legacy hardcoded URL for existing deployments
-            $baseUrl = "https://blob.vercel-storage.com";
-        }
-
-        // Remove trailing slash if present
-        $baseUrl = rtrim($baseUrl, '/');
+        // Use hardcoded fallback - settings are configured later by customer
+        $baseUrl = "https://blob.vercel-storage.com";
 
         return "{$baseUrl}/{$path}";
     }
