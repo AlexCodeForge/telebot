@@ -328,9 +328,15 @@
                                                         </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                                                <button type="button" class="btn btn-outline-primary"
-                                                                    onclick="editVideo({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }}, '{{ $video->getThumbnailUrl() }}', '{{ $video->thumbnail_url }}', {{ $video->show_blurred_thumbnail ? 'true' : 'false' }}, {{ $video->blur_intensity }}, {{ $video->allow_preview ? 'true' : 'false' }}, '{{ $video->thumbnail_blob_url }}')">
+                                                                <!-- Edit Video Details Button -->
+                                                                <button type="button" class="btn btn-outline-primary" title="Edit Video Details"
+                                                                    onclick="editVideoDetails({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }}, {{ $video->show_blurred_thumbnail ? 'true' : 'false' }}, {{ $video->blur_intensity }}, {{ $video->allow_preview ? 'true' : 'false' }})">
                                                                     <i class="fas fa-edit"></i>
+                                                                </button>
+                                                                <!-- Edit Thumbnail Button -->
+                                                                <button type="button" class="btn btn-outline-info" title="Edit Thumbnail"
+                                                                    onclick="editVideoThumbnail({{ $video->id }}, '{{ $video->getThumbnailUrl() }}', '{{ $video->thumbnail_url }}', '{{ $video->thumbnail_blob_url }}')">
+                                                                    <i class="fas fa-image"></i>
                                                                 </button>
                                                                 @if ($syncUserTelegramId)
                                                                     <button type="button" class="btn btn-outline-success"
@@ -469,126 +475,127 @@
         </div>
     </div>
 
-    {{-- Edit Video Modal --}}
-    <div class="modal fade" id="editVideoModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    {{-- Edit Video Details Modal --}}
+    <div class="modal fade" id="editVideoDetailsModal" tabindex="-1">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Video</h5>
+                    <h5 class="modal-title">Edit Video Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="editVideoForm" onsubmit="updateVideo(event)" action="javascript:void(0)">
+                <form id="editVideoDetailsForm" onsubmit="updateVideoDetails(event)" action="javascript:void(0)">
                     <div class="modal-body">
-                        <div class="row">
-                            <!-- Basic Video Details -->
-                            <div class="col-md-6">
-                                <h6 class="fw-bold mb-3"><i class="fas fa-info-circle text-primary"></i> Video Details
-                                </h6>
-                                <div class="mb-3">
-                                    <label for="edit-title" class="form-label">Title</label>
-                                    <input type="text" class="form-control" id="edit-title" name="title" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="edit-description" class="form-label">Description</label>
-                                    <textarea class="form-control" id="edit-description" name="description" rows="3"></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="edit-price" class="form-label">Price ($)</label>
-                                    <input type="number" class="form-control" id="edit-price" name="price"
-                                        step="0.01" min="0" required>
-                                </div>
-                            </div>
-
-                            <!-- Thumbnail Management -->
-                            <div class="col-md-6">
-                                <h6 class="fw-bold mb-3"><i class="fas fa-image text-success"></i> Thumbnail Settings</h6>
-
-                                <!-- Current Thumbnail Preview -->
-                                <div id="current-thumbnail-preview" class="mb-3" style="display: none;">
-                                    <label class="form-label">Current Thumbnail</label>
-                                    <div class="border rounded p-2">
-                                        <img id="current-thumbnail-img" src="" alt="Current thumbnail"
-                                            class="img-fluid rounded" style="max-height: 120px;">
-                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2"
-                                            onclick="removeThumbnail()">
-                                            <i class="fas fa-trash"></i> Remove
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Upload New Thumbnail -->
-                                <div class="mb-3">
-                                    <label for="edit-thumbnail" class="form-label">Upload Thumbnail</label>
-                                    <input type="file" class="form-control" id="edit-thumbnail" name="thumbnail"
-                                        accept="image/*" onchange="previewThumbnail(this)">
-                                    <div class="form-text">Upload JPG, PNG, or GIF image (max 2MB)</div>
-                                </div>
-
-                                <!-- External Thumbnail URL -->
-                                <div class="mb-3">
-                                    <label for="edit-thumbnail-url" class="form-label">Or External URL</label>
-                                    <input type="url" class="form-control" id="edit-thumbnail-url"
-                                        name="thumbnail_url" placeholder="https://example.com/image.jpg">
-                                </div>
-
-                                <!-- Thumbnail Preview (New Upload) -->
-                                <div id="new-thumbnail-preview" class="mb-3" style="display: none;">
-                                    <label class="form-label">New Thumbnail Preview</label>
-                                    <div class="border rounded p-2">
-                                        <img id="new-thumbnail-img" src="" alt="New thumbnail"
-                                            class="img-fluid rounded" style="max-height: 120px;">
-                                    </div>
-                                </div>
-                            </div>
+                        <!-- Basic Video Details -->
+                        <h6 class="fw-bold mb-3"><i class="fas fa-info-circle text-primary"></i> Video Information</h6>
+                        <div class="mb-3">
+                            <label for="edit-details-title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="edit-details-title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-details-description" class="form-label">Description</label>
+                            <textarea class="form-control" id="edit-details-description" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-details-price" class="form-label">Price ($)</label>
+                            <input type="number" class="form-control" id="edit-details-price" name="price"
+                                step="0.01" min="0" required>
                         </div>
 
                         <hr>
 
-                        <!-- Blur Settings -->
-                        <div class="row">
-                            <div class="col-12">
-                                <h6 class="fw-bold mb-3"><i class="fas fa-eye text-warning"></i> Customer Display Settings
-                                </h6>
+                        <!-- Display Settings -->
+                        <h6 class="fw-bold mb-3"><i class="fas fa-eye text-warning"></i> Customer Display Settings</h6>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="edit-details-show-blurred"
+                                    name="show_blurred" value="1" onchange="toggleDetailsDisplaySettings()">
+                                <label class="form-check-label" for="edit-details-show-blurred">
+                                    Show Blurred Thumbnail to Customers
+                                </label>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="edit-show-blurred"
-                                            name="show_blurred" value="1" onchange="toggleCustomerDisplaySettings()">
-                                        <label class="form-check-label" for="edit-show-blurred">
-                                            Show Blurred Thumbnail to Customers
-                                        </label>
-                                    </div>
-                                    <div class="form-text">When enabled, customers see a blurred version until purchase
-                                    </div>
-                                </div>
+                            <div class="form-text">When enabled, customers see a blurred version until purchase</div>
+                        </div>
+
+                        <div class="mb-3" id="details-blur-intensity-container">
+                            <label for="edit-details-blur-intensity" class="form-label">Blur Intensity</label>
+                            <input type="range" class="form-range" id="edit-details-blur-intensity"
+                                name="blur_intensity" min="1" max="20" value="10">
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Light</small>
+                                <small class="text-muted">Heavy</small>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3" id="blur-intensity-container">
-                                    <label for="edit-blur-intensity" class="form-label">Blur Intensity</label>
-                                    <input type="range" class="form-range" id="edit-blur-intensity"
-                                        name="blur_intensity" min="1" max="20" value="10">
-                                    <div class="d-flex justify-content-between">
-                                        <small class="text-muted">Light</small>
-                                        <small class="text-muted">Heavy</small>
-                                    </div>
-                                    <div class="form-text">Intensity: <span id="blur-intensity-display">10</span>px</div>
-                                </div>
+                            <div class="form-text">Intensity: <span id="details-blur-intensity-display">10</span>px</div>
+                        </div>
+
+                        <div class="mb-3" id="details-allow-preview-container">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="edit-details-allow-preview"
+                                    name="allow_preview" value="1">
+                                <label class="form-check-label" for="edit-details-allow-preview">
+                                    Allow Unblurred Preview
+                                </label>
+                            </div>
+                            <div class="form-text">Allow customers to see unblurred version on hover/click</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Details
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Edit Video Thumbnail Modal --}}
+    <div class="modal fade" id="editVideoThumbnailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Video Thumbnail</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editVideoThumbnailForm" onsubmit="updateVideoThumbnail(event)" action="javascript:void(0)">
+                    <div class="modal-body">
+                        <h6 class="fw-bold mb-3"><i class="fas fa-image text-success"></i> Thumbnail Management</h6>
+
+                        <!-- Current Thumbnail Preview -->
+                        <div id="current-thumbnail-preview" class="mb-3" style="display: none;">
+                            <label class="form-label">Current Thumbnail</label>
+                            <div class="border rounded p-2">
+                                <img id="current-thumbnail-img" src="" alt="Current thumbnail"
+                                    class="img-fluid rounded" style="max-height: 200px;">
+                                <button type="button" class="btn btn-sm btn-outline-danger mt-2"
+                                    onclick="removeThumbnail()">
+                                    <i class="fas fa-trash"></i> Remove Current
+                                </button>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3" id="allow-preview-container">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="edit-allow-preview"
-                                            name="allow_preview" value="1">
-                                        <label class="form-check-label" for="edit-allow-preview">
-                                            Allow Unblurred Preview
-                                        </label>
-                                    </div>
-                                    <div class="form-text">Allow customers to see unblurred version on hover/click</div>
-                                </div>
+                        <!-- Upload New Thumbnail -->
+                        <div class="mb-3">
+                            <label for="edit-thumbnail" class="form-label">Upload New Thumbnail</label>
+                            <input type="file" class="form-control" id="edit-thumbnail" name="thumbnail"
+                                accept="image/*" onchange="previewThumbnail(this)">
+                            <div class="form-text">Upload JPG, PNG, or GIF image (max 2MB)</div>
+                        </div>
+
+                        <!-- External Thumbnail URL -->
+                        <div class="mb-3">
+                            <label for="edit-thumbnail-url" class="form-label">Or Use External URL</label>
+                            <input type="url" class="form-control" id="edit-thumbnail-url"
+                                name="thumbnail_url" placeholder="https://example.com/image.jpg">
+                            <div class="form-text">Provide a direct link to an image</div>
+                        </div>
+
+                        <!-- Thumbnail Preview (New Upload) -->
+                        <div id="new-thumbnail-preview" class="mb-3" style="display: none;">
+                            <label class="form-label">New Thumbnail Preview</label>
+                            <div class="border rounded p-2">
+                                <img id="new-thumbnail-img" src="" alt="New thumbnail"
+                                    class="img-fluid rounded" style="max-height: 200px;">
                             </div>
                         </div>
 
@@ -597,8 +604,8 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Changes
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-image"></i> Save Thumbnail
                         </button>
                     </div>
                 </form>
@@ -980,29 +987,37 @@
                 });
         }
 
-        // Edit Video Functions
-        function editVideo(id, title, description, price, thumbnailPath, thumbnailUrl, showBlurred, blurIntensity,
-            allowPreview, thumbnailBlobUrl) {
+        // Edit Video Details Functions
+        function editVideoDetails(id, title, description, price, showBlurred, blurIntensity, allowPreview) {
             // Set basic video fields
-            document.getElementById('edit-title').value = title;
-            document.getElementById('edit-description').value = description;
-            document.getElementById('edit-price').value = price;
-
-            // Set thumbnail fields
-            document.getElementById('edit-thumbnail-url').value = thumbnailUrl || '';
-            document.getElementById('edit-thumbnail-blob-url').value = thumbnailBlobUrl || '';
+            document.getElementById('edit-details-title').value = title;
+            document.getElementById('edit-details-description').value = description;
+            document.getElementById('edit-details-price').value = price;
 
             // Set blur settings - convert string 'true'/'false' to boolean
             const isBlurredEnabled = showBlurred === true || showBlurred === 'true';
             const isPreviewEnabled = allowPreview === true || allowPreview === 'true';
 
-            document.getElementById('edit-show-blurred').checked = isBlurredEnabled;
-            document.getElementById('edit-blur-intensity').value = blurIntensity || 10;
-            document.getElementById('blur-intensity-display').textContent = blurIntensity || 10;
-            document.getElementById('edit-allow-preview').checked = isPreviewEnabled;
+            document.getElementById('edit-details-show-blurred').checked = isBlurredEnabled;
+            document.getElementById('edit-details-blur-intensity').value = blurIntensity || 10;
+            document.getElementById('details-blur-intensity-display').textContent = blurIntensity || 10;
+            document.getElementById('edit-details-allow-preview').checked = isPreviewEnabled;
 
             // Toggle display settings based on blur checkbox
-            toggleCustomerDisplaySettings();
+            toggleDetailsDisplaySettings();
+
+            // Store the video ID for submission
+            document.getElementById('editVideoDetailsForm').setAttribute('data-video-id', id);
+
+            const modal = new bootstrap.Modal(document.getElementById('editVideoDetailsModal'));
+            modal.show();
+        }
+
+        // Edit Video Thumbnail Functions
+        function editVideoThumbnail(id, thumbnailPath, thumbnailUrl, thumbnailBlobUrl) {
+            // Set thumbnail fields
+            document.getElementById('edit-thumbnail-url').value = thumbnailUrl || '';
+            document.getElementById('edit-thumbnail-blob-url').value = thumbnailBlobUrl || '';
 
             // Show current thumbnail if exists
             const currentThumbnailPreview = document.getElementById('current-thumbnail-preview');
@@ -1020,13 +1035,13 @@
             document.getElementById('edit-thumbnail').value = '';
 
             // Store the video ID for submission
-            document.getElementById('editVideoForm').setAttribute('data-video-id', id);
+            document.getElementById('editVideoThumbnailForm').setAttribute('data-video-id', id);
 
-            const modal = new bootstrap.Modal(document.getElementById('editVideoModal'));
+            const modal = new bootstrap.Modal(document.getElementById('editVideoThumbnailModal'));
             modal.show();
         }
 
-        function updateVideo(event) {
+        function updateVideoDetails(event) {
             // CRITICAL: Prevent any form submission to avoid FormData processing
             event.preventDefault();
             event.stopPropagation();
@@ -1042,17 +1057,10 @@
 
             async function performUpdate() {
                 try {
-                    // Additional safety check to ensure we never use FormData
-                    if (window.FormData && form instanceof HTMLFormElement) {
-                        console.log('✅ Form element detected, using manual data collection (not FormData)');
-                    }
-
-                    // Collect form data manually with null checks (NO FormData to avoid serverless issues)
+                    // Collect form data manually (NO FormData to avoid serverless issues)
                     const titleEl = form.querySelector('[name="title"]');
                     const descriptionEl = form.querySelector('[name="description"]');
                     const priceEl = form.querySelector('[name="price"]');
-                    const thumbnailUrlEl = form.querySelector('[name="thumbnail_url"]');
-                    const thumbnailBlobUrlEl = form.querySelector('[name="thumbnail_blob_url"]');
                     const blurIntensityEl = form.querySelector('[name="blur_intensity"]');
                     const showBlurredEl = form.querySelector('[name="show_blurred"]');
                     const allowPreviewEl = form.querySelector('[name="allow_preview"]');
@@ -1065,11 +1073,87 @@
                         title: titleEl.value,
                         description: descriptionEl ? descriptionEl.value : '',
                         price: priceEl.value,
-                        thumbnail_url: thumbnailUrlEl ? thumbnailUrlEl.value : '',
-                        thumbnail_blob_url: thumbnailBlobUrlEl ? thumbnailBlobUrlEl.value : '',
                         blur_intensity: blurIntensityEl ? blurIntensityEl.value : 10,
                         show_blurred: showBlurredEl ? (showBlurredEl.checked ? 1 : 0) : 0,
                         allow_preview: allowPreviewEl ? (allowPreviewEl.checked ? 1 : 0) : 0,
+                        _method: 'PUT',
+                        _token: '{{ csrf_token() }}'
+                    };
+
+                    console.log('Submitting video details update:', formData);
+
+                    // Submit as JSON instead of FormData to avoid serverless middleware issues
+                    const response = await fetch(`/admin/videos/${videoId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const responseText = await response.text();
+                    console.log('Raw response:', responseText);
+
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+                        if (responseText.includes('500') || responseText.includes('Internal Server Error')) {
+                            throw new Error('Server error occurred. Please try again or contact support.');
+                        }
+                        throw new Error('Invalid server response. Please try again.');
+                    }
+
+                    if (data.success) {
+                        showAlert('success', 'Video details updated successfully!');
+                        setTimeout(() => {
+                            bootstrap.Modal.getInstance(document.getElementById('editVideoDetailsModal')).hide();
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        const errorMsg = data.message || data.error || 'Failed to update video details';
+                        showAlert('danger', errorMsg);
+                    }
+                } catch (error) {
+                    showAlert('danger', 'Update failed: ' + error.message);
+                    console.error('Update video details failed:', error);
+                } finally {
+                    // Restore button state
+                    submitButton.innerHTML = originalText;
+                    submitButton.disabled = false;
+                }
+            }
+
+            performUpdate();
+        }
+
+        function updateVideoThumbnail(event) {
+            // CRITICAL: Prevent any form submission to avoid FormData processing
+            event.preventDefault();
+            event.stopPropagation();
+
+            const form = event.target;
+            const videoId = form.getAttribute('data-video-id');
+
+            // Show loading state
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            submitButton.disabled = true;
+
+            async function performUpdate() {
+                try {
+                    // Collect form data manually (NO FormData to avoid serverless issues)
+                    const thumbnailUrlEl = form.querySelector('[name="thumbnail_url"]');
+                    const thumbnailBlobUrlEl = form.querySelector('[name="thumbnail_blob_url"]');
+
+                    const formData = {
+                        thumbnail_url: thumbnailUrlEl ? thumbnailUrlEl.value : '',
+                        thumbnail_blob_url: thumbnailBlobUrlEl ? thumbnailBlobUrlEl.value : '',
                         _method: 'PUT',
                         _token: '{{ csrf_token() }}'
                     };
@@ -1104,10 +1188,7 @@
                         formData.thumbnail_blob_url = uploadResult.blob_url;
                     }
 
-                    // Debug: Log what we're sending
-                    console.log('Form data being sent:', formData);
-
-                    console.log('Submitting video update:', formData);
+                    console.log('Submitting thumbnail update:', formData);
 
                     // Submit as JSON instead of FormData to avoid serverless middleware issues
                     const response = await fetch(`/admin/videos/${videoId}`, {
@@ -1121,7 +1202,6 @@
                         body: JSON.stringify(formData)
                     });
 
-                    // Enhanced response handling
                     const responseText = await response.text();
                     console.log('Raw response:', responseText);
 
@@ -1130,28 +1210,25 @@
                         data = JSON.parse(responseText);
                     } catch (parseError) {
                         console.error('JSON parse error:', parseError);
-
-                        // Check if response looks like a server error page
                         if (responseText.includes('500') || responseText.includes('Internal Server Error')) {
                             throw new Error('Server error occurred. Please try again or contact support.');
                         }
-
                         throw new Error('Invalid server response. Please try again.');
                     }
 
                     if (data.success) {
-                        showAlert('success', 'Video updated successfully!');
+                        showAlert('success', 'Video thumbnail updated successfully!');
                         setTimeout(() => {
-                            bootstrap.Modal.getInstance(document.getElementById('editVideoModal')).hide();
+                            bootstrap.Modal.getInstance(document.getElementById('editVideoThumbnailModal')).hide();
                             window.location.reload();
                         }, 1500);
                     } else {
-                        const errorMsg = data.message || data.error || 'Failed to update video';
+                        const errorMsg = data.message || data.error || 'Failed to update video thumbnail';
                         showAlert('danger', errorMsg);
                     }
                 } catch (error) {
                     showAlert('danger', 'Update failed: ' + error.message);
-                    console.error('Update video failed:', error);
+                    console.error('Update video thumbnail failed:', error);
                 } finally {
                     // Restore button state
                     submitButton.innerHTML = originalText;
@@ -1179,14 +1256,14 @@
             // You could add an AJAX call here to actually remove the thumbnail from the server
         }
 
-        // Blur intensity slider update
+        // Blur intensity slider update for details modal
         document.addEventListener('DOMContentLoaded', function() {
-            const blurSlider = document.getElementById('edit-blur-intensity');
-            const blurDisplay = document.getElementById('blur-intensity-display');
+            const detailsBlurSlider = document.getElementById('edit-details-blur-intensity');
+            const detailsBlurDisplay = document.getElementById('details-blur-intensity-display');
 
-            if (blurSlider && blurDisplay) {
-                blurSlider.addEventListener('input', function() {
-                    blurDisplay.textContent = this.value;
+            if (detailsBlurSlider && detailsBlurDisplay) {
+                detailsBlurSlider.addEventListener('input', function() {
+                    detailsBlurDisplay.textContent = this.value;
                 });
             }
         });
@@ -1208,13 +1285,13 @@
             }, 5000);
         }
 
-        // Toggle customer display settings
-        function toggleCustomerDisplaySettings() {
-            const showBlurred = document.getElementById('edit-show-blurred').checked;
-            const blurIntensityContainer = document.getElementById('blur-intensity-container');
-            const allowPreviewContainer = document.getElementById('allow-preview-container');
-            const blurIntensitySlider = document.getElementById('edit-blur-intensity');
-            const allowPreviewCheckbox = document.getElementById('edit-allow-preview');
+        // Toggle customer display settings for details modal
+        function toggleDetailsDisplaySettings() {
+            const showBlurred = document.getElementById('edit-details-show-blurred').checked;
+            const blurIntensityContainer = document.getElementById('details-blur-intensity-container');
+            const allowPreviewContainer = document.getElementById('details-allow-preview-container');
+            const blurIntensitySlider = document.getElementById('edit-details-blur-intensity');
+            const allowPreviewCheckbox = document.getElementById('edit-details-allow-preview');
 
             if (showBlurred) {
                 // Enable blur settings
