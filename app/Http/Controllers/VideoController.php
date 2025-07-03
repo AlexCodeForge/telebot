@@ -55,6 +55,7 @@ class VideoController extends Controller
             $stripeKey = Setting::get('stripe_key');
             $stripeSecret = Setting::get('stripe_secret');
             $stripeWebhookSecret = Setting::get('stripe_webhook_secret');
+            $vercelBlobToken = Setting::get('vercel_blob_token');
 
             try {
                 $botToken = $telegramToken ?: config('telegram.bots.mybot.token');
@@ -77,7 +78,8 @@ class VideoController extends Controller
                 'telegramToken',
                 'stripeKey',
                 'stripeSecret',
-                'stripeWebhookSecret'
+                'stripeWebhookSecret',
+                'vercelBlobToken'
             ));
         } catch (Exception $e) {
             Log::error('Error loading admin videos: ' . $e->getMessage());
@@ -147,7 +149,8 @@ class VideoController extends Controller
                 // Delete old thumbnail from Vercel Blob if exists
                 if ($video->thumbnail_path && $video->thumbnail_blob_url) {
                     try {
-                        $blobClient = new BlobClient(env('test_READ_WRITE_TOKEN'));
+                        $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
+                        $blobClient = new BlobClient($blobToken);
                         // Extract blob name from URL for deletion
                         $pathToDelete = str_replace('thumbnails/', '', $video->thumbnail_path);
                         $blobClient->del([$pathToDelete]);
@@ -157,10 +160,10 @@ class VideoController extends Controller
                     }
                 }
 
-                // Check if Vercel Blob token is available
-                $blobToken = env('test_READ_WRITE_TOKEN');
+                // Check if Vercel Blob token is available (settings first, then environment)
+                $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
                 if (empty($blobToken)) {
-                    throw new \Exception('Vercel Blob token not configured');
+                    throw new \Exception('Vercel Blob token not configured in admin settings');
                 }
 
                 // Store new thumbnail to Vercel Blob directly (read from stream)
@@ -235,7 +238,8 @@ class VideoController extends Controller
         // Delete thumbnail from Vercel Blob if exists
         if ($video->thumbnail_blob_url) {
             try {
-                $blobClient = new BlobClient(env('test_READ_WRITE_TOKEN'));
+                $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
+                $blobClient = new BlobClient($blobToken);
                 // Extract blob name from path for deletion
                 $pathToDelete = str_replace('thumbnails/', '', $video->thumbnail_path);
                 $blobClient->del([$pathToDelete]);
@@ -461,6 +465,26 @@ class VideoController extends Controller
                     } else {
                         Setting::set('stripe_webhook_secret', $webhookSecret);
                         $savedTokens[] = 'Stripe Webhook Secret';
+                    }
+                }
+            }
+
+            // Validate and save Vercel Blob token
+            if (isset($tokens['vercel_blob_token'])) {
+                $blobToken = trim($tokens['vercel_blob_token']);
+                if (!empty($blobToken)) {
+                    if (!str_starts_with($blobToken, 'vercel_blob_rw_')) {
+                        $errors[] = 'Invalid Vercel Blob token format. Should start with vercel_blob_rw_';
+                    } else {
+                        // Test the token by trying to list blobs
+                        try {
+                            $testClient = new BlobClient($blobToken);
+                            $testClient->list(); // This will throw if token is invalid
+                            Setting::set('vercel_blob_token', $blobToken);
+                            $savedTokens[] = 'Vercel Blob Storage Token';
+                        } catch (\Exception $e) {
+                            $errors[] = 'Vercel Blob token is invalid or doesn\'t have proper permissions: ' . $e->getMessage();
+                        }
                     }
                 }
             }

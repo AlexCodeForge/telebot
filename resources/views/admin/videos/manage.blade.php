@@ -70,6 +70,19 @@
                     </div>
                 </div>
             </div>
+            <div class="col-md-4">
+                                    <div
+                                        class="card h-100 {{ $vercelBlobToken ? 'border-success' : 'border-danger' }}">
+                                        <div class="card-body text-center">
+                                            <i
+                                                class="fas fa-cloud-upload-alt fa-2x {{ $vercelBlobToken ? 'text-success' : 'text-danger' }} mb-2"></i>
+                                            <h6 class="card-title">Vercel Blob Storage</h6>
+                                            <p class="card-text text-muted">
+                                                {{ $vercelBlobToken ? 'Configured' : 'Not Configured' }}</p>
+                                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
                         {{-- Success/Error Messages --}}
@@ -388,6 +401,9 @@
                                         href="https://dashboard.stripe.com/webhooks" target="_blank"
                                         class="text-decoration-none">Stripe Dashboard → Webhooks</a> (optional but
                                     recommended for security)</li>
+                                <li><strong>Vercel Blob Token:</strong> Get from <a href="https://vercel.com/dashboard"
+                                        target="_blank" class="text-decoration-none">Vercel Dashboard → Storage → Blob</a>
+                                    (required for thumbnail uploads on serverless deployments)</li>
                             </ul>
                         </div>
 
@@ -434,6 +450,17 @@
                                 placeholder="whsec_..."
                                 value="{{ $stripeWebhookSecret ? str_repeat('*', 30) . substr($stripeWebhookSecret, -10) : '' }}">
                             <div class="form-text">For secure webhook processing (recommended for production)</div>
+                        </div>
+
+                        <!-- Vercel Blob Storage Token -->
+                        <div class="mb-3">
+                            <label for="modal_vercel_blob_token" class="form-label">
+                                <i class="fas fa-cloud-upload-alt text-info"></i> Vercel Blob Storage Token
+                            </label>
+                            <input type="password" class="form-control" id="modal_vercel_blob_token"
+                                placeholder="vercel_blob_rw_..."
+                                value="{{ $vercelBlobToken ? str_repeat('*', 40) . substr($vercelBlobToken, -10) : '' }}">
+                            <div class="form-text">Required for thumbnail uploads on Vercel (serverless deployment)</div>
             </div>
         </form>
                 </div>
@@ -913,9 +940,10 @@
             const stripeKey = document.getElementById('modal_stripe_key').value.trim();
             const stripeSecret = document.getElementById('modal_stripe_secret').value.trim();
             const stripeWebhookSecret = document.getElementById('modal_stripe_webhook_secret').value.trim();
+            const vercelBlobToken = document.getElementById('modal_vercel_blob_token').value.trim();
 
             // Validate required fields
-            if (!telegramToken && !stripeKey && !stripeSecret && !stripeWebhookSecret) {
+            if (!telegramToken && !stripeKey && !stripeSecret && !stripeWebhookSecret && !vercelBlobToken) {
                 showAlert('warning', 'Please enter at least one token to save');
                 return;
             }
@@ -926,6 +954,7 @@
             if (stripeSecret && !stripeSecret.includes('*')) tokens.stripe_secret = stripeSecret;
             if (stripeWebhookSecret && !stripeWebhookSecret.includes('*')) tokens.stripe_webhook_secret =
                 stripeWebhookSecret;
+            if (vercelBlobToken && !vercelBlobToken.includes('*')) tokens.vercel_blob_token = vercelBlobToken;
 
             fetch('{{ route('admin.tokens.save-all') }}', {
                     method: 'POST',
