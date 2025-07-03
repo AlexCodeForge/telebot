@@ -554,7 +554,7 @@
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" id="edit-show-blurred"
-                                            name="show_blurred_thumbnail" value="1" onchange="toggleCustomerDisplaySettings()">
+                                            name="show_blurred" value="1" onchange="toggleCustomerDisplaySettings()">
                                         <label class="form-check-label" for="edit-show-blurred">
                                             Show Blurred Thumbnail to Customers
                                         </label>
@@ -1036,11 +1036,24 @@
 
             async function performUpdate() {
                 try {
-                    const formData = new FormData(form);
-                    const thumbnailFile = formData.get('thumbnail');
+                    // Collect form data manually (NO FormData to avoid serverless issues)
+                    const formData = {
+                        title: form.querySelector('[name="title"]').value,
+                        description: form.querySelector('[name="description"]').value,
+                        price: form.querySelector('[name="price"]').value,
+                        thumbnail_url: form.querySelector('[name="thumbnail_url"]').value || '',
+                        thumbnail_blob_url: form.querySelector('[name="thumbnail_blob_url"]').value || '',
+                        blur_intensity: form.querySelector('[name="blur_intensity"]').value || 10,
+                        show_blurred: form.querySelector('[name="show_blurred"]').checked ? 1 : 0,
+                        allow_preview: form.querySelector('[name="allow_preview"]').checked ? 1 : 0,
+                        _method: 'PUT',
+                        _token: '{{ csrf_token() }}'
+                    };
 
-                    // Fix: Only process file if it's actually selected and has content
-                    if (thumbnailFile && thumbnailFile.size > 0 && thumbnailFile.name !== '') {
+                    const thumbnailFile = form.querySelector('[name="thumbnail"]').files[0];
+
+                    // Handle thumbnail upload to Vercel Blob if a file is selected
+                    if (thumbnailFile && thumbnailFile.size > 0) {
                         console.log('Uploading thumbnail to Vercel Blob...');
 
                         // Upload directly to Vercel Blob
@@ -1062,31 +1075,22 @@
 
                         console.log('Thumbnail uploaded successfully:', uploadResult.blob_url);
 
-                        // Replace the file with the blob URL
-                        formData.delete('thumbnail');
-                        formData.set('thumbnail_blob_url', uploadResult.blob_url);
-                    } else {
-                        // Fix: Remove empty file input from form data
-                        formData.delete('thumbnail');
-                        console.log('No thumbnail file selected, skipping upload');
+                        // Add the blob URL to our data
+                        formData.thumbnail_blob_url = uploadResult.blob_url;
                     }
-
-                    // Add the method override to form data
-                    formData.append('_method', 'PUT');
 
                     // Debug: Log what we're sending
-                    console.log('Form data being sent:');
-                    for (let [key, value] of formData.entries()) {
-                        console.log(key + ': ' + (value instanceof File ? `[File: ${value.name}]` : value));
-                    }
+                    console.log('Form data being sent:', formData);
 
-                    // Submit the form with blob URL instead of file
+                    // Submit as JSON instead of FormData to avoid serverless middleware issues
                     const response = await fetch(`/admin/videos/${videoId}`, {
                         method: 'POST',
                         headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
                         },
-                        body: formData
+                        body: JSON.stringify(formData)
                     });
 
                     // Check if response is JSON

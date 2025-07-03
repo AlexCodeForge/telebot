@@ -97,10 +97,19 @@ class VideoController extends Controller
             return $redirect;
         }
 
+        // Handle JSON input by merging it with the request
+        if ($request->getContentType() === 'json') {
+            $jsonData = json_decode($request->getContent(), true);
+            if ($jsonData) {
+                $request->merge($jsonData);
+            }
+        }
+
         // Log incoming request for debugging
         Log::info('Video update request', [
             'video_id' => $video->id,
-            'request_data' => $request->all()
+            'request_data' => $request->all(),
+            'content_type' => $request->getContentType()
         ]);
 
         try {
@@ -111,6 +120,8 @@ class VideoController extends Controller
                 'thumbnail_url' => 'nullable|url',
                 'thumbnail_blob_url' => 'nullable|url',
                 'blur_intensity' => 'nullable|integer|min:1|max:20',
+                'show_blurred' => 'nullable|boolean',
+                'allow_preview' => 'nullable|boolean',
                 // Fix: Only validate thumbnail if it's actually uploaded and not empty
                 'thumbnail' => 'nullable|file|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
@@ -126,9 +137,9 @@ class VideoController extends Controller
 
         $updateData = $request->only(['title', 'description', 'price', 'thumbnail_url', 'blur_intensity']);
 
-        // Handle boolean fields explicitly (checkboxes send no value when unchecked)
-        $updateData['show_blurred_thumbnail'] = $request->has('show_blurred_thumbnail') && $request->input('show_blurred_thumbnail') == '1' ? 1 : 0;
-        $updateData['allow_preview'] = $request->has('allow_preview') && $request->input('allow_preview') == '1' ? 1 : 0;
+        // Handle boolean fields from JSON input (map frontend field names to database field names)
+        $updateData['show_blurred_thumbnail'] = $request->input('show_blurred') ? 1 : 0;
+        $updateData['allow_preview'] = $request->input('allow_preview') ? 1 : 0;
 
         // Handle direct Vercel Blob upload (from JavaScript direct upload)
         if ($request->has('thumbnail_blob_url') && !empty($request->input('thumbnail_blob_url'))) {
