@@ -92,6 +92,11 @@ class VideoController extends Controller
      */
     public function update(Request $request, Video $video)
     {
+        // CRITICAL: Admin check first!
+        if ($redirect = $this->requireAdmin()) {
+            return $redirect;
+        }
+
         // Log incoming request for debugging
         Log::info('Video update request', [
             'video_id' => $video->id,
@@ -149,6 +154,11 @@ class VideoController extends Controller
                 // Delete old thumbnail from Vercel Blob if exists
                 if ($video->thumbnail_path && $video->thumbnail_blob_url) {
                     try {
+                        // Check if Vercel Blob classes are available
+                        if (!class_exists('VercelBlobPhp\Client')) {
+                            throw new \Exception('Vercel Blob package not available');
+                        }
+
                         $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
                         $blobClient = new BlobClient($blobToken);
                         // Use the full blob URL for deletion (del method expects URLs, not paths)
@@ -163,6 +173,11 @@ class VideoController extends Controller
                 $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
                 if (empty($blobToken)) {
                     throw new \Exception('Vercel Blob token not configured in admin settings');
+                }
+
+                // Check if Vercel Blob classes are available before upload
+                if (!class_exists('VercelBlobPhp\Client') || !class_exists('VercelBlobPhp\CommonCreateBlobOptions')) {
+                    throw new \Exception('Vercel Blob package not available. Please run composer install.');
                 }
 
                 // Store new thumbnail to Vercel Blob directly (read from stream)
@@ -235,14 +250,24 @@ class VideoController extends Controller
      */
     public function destroy(Video $video)
     {
+        // Admin check
+        if ($redirect = $this->requireAdmin()) {
+            return $redirect;
+        }
+
         // Delete thumbnail from Vercel Blob if exists
         if ($video->thumbnail_blob_url) {
             try {
-                $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
-                $blobClient = new BlobClient($blobToken);
-                // Use the full blob URL for deletion (del method expects URLs, not paths)
-                $blobClient->del([$video->thumbnail_blob_url]);
-                Log::info('Thumbnail deleted from Vercel Blob', ['video_id' => $video->id, 'url' => $video->thumbnail_blob_url]);
+                // Check if Vercel Blob classes are available
+                if (!class_exists('VercelBlobPhp\Client')) {
+                    Log::warning('Vercel Blob package not available for deletion');
+                } else {
+                    $blobToken = Setting::get('vercel_blob_token') ?: env('test_READ_WRITE_TOKEN');
+                    $blobClient = new BlobClient($blobToken);
+                    // Use the full blob URL for deletion (del method expects URLs, not paths)
+                    $blobClient->del([$video->thumbnail_blob_url]);
+                    Log::info('Thumbnail deleted from Vercel Blob', ['video_id' => $video->id, 'url' => $video->thumbnail_blob_url]);
+                }
             } catch (\Exception $e) {
                 Log::warning('Failed to delete thumbnail from Vercel Blob', ['error' => $e->getMessage()]);
             }
@@ -475,12 +500,16 @@ class VideoController extends Controller
                     if (!str_starts_with($blobToken, 'vercel_blob_rw_')) {
                         $errors[] = 'Invalid Vercel Blob token format. Should start with vercel_blob_rw_';
                     } else {
-                        // Test the token by trying to list blobs
+                        // Test the token by trying to list blobs (only if classes are available)
                         try {
-                            $testClient = new BlobClient($blobToken);
-                            $testClient->list(); // This will throw if token is invalid
-                            Setting::set('vercel_blob_token', $blobToken);
-                            $savedTokens[] = 'Vercel Blob Storage Token';
+                            if (!class_exists('VercelBlobPhp\Client')) {
+                                $errors[] = 'Vercel Blob package not available. Please run composer install.';
+                            } else {
+                                $testClient = new BlobClient($blobToken);
+                                $testClient->list(); // This will throw if token is invalid
+                                Setting::set('vercel_blob_token', $blobToken);
+                                $savedTokens[] = 'Vercel Blob Storage Token';
+                            }
                         } catch (\Exception $e) {
                             $errors[] = 'Vercel Blob token is invalid or doesn\'t have proper permissions: ' . $e->getMessage();
                         }
