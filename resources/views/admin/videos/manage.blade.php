@@ -329,7 +329,7 @@
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                                                 <button type="button" class="btn btn-outline-primary"
-                                                                    onclick="editVideo({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }}, '{{ $video->getThumbnailUrl() }}', '{{ $video->thumbnail_url }}', {{ $video->show_blurred_thumbnail ? 'true' : 'false' }}, {{ $video->blur_intensity }}, {{ $video->allow_preview ? 'true' : 'false' }})">
+                                                                    onclick="editVideo({{ $video->id }}, '{{ addslashes($video->title) }}', '{{ addslashes($video->description) }}', {{ $video->price }}, '{{ $video->getThumbnailUrl() }}', '{{ $video->thumbnail_url }}', {{ $video->show_blurred_thumbnail ? 'true' : 'false' }}, {{ $video->blur_intensity }}, {{ $video->allow_preview ? 'true' : 'false' }}, '{{ $video->thumbnail_blob_url }}')">
                                                                     <i class="fas fa-edit"></i>
                                                                 </button>
                                                                 @if ($syncUserTelegramId)
@@ -591,6 +591,9 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Hidden fields for blob storage -->
+                        <input type="hidden" name="thumbnail_blob_url" id="edit-thumbnail-blob-url" value="">
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -979,7 +982,7 @@
 
         // Edit Video Functions
         function editVideo(id, title, description, price, thumbnailPath, thumbnailUrl, showBlurred, blurIntensity,
-            allowPreview) {
+            allowPreview, thumbnailBlobUrl) {
             // Set basic video fields
             document.getElementById('edit-title').value = title;
             document.getElementById('edit-description').value = description;
@@ -987,6 +990,7 @@
 
             // Set thumbnail fields
             document.getElementById('edit-thumbnail-url').value = thumbnailUrl || '';
+            document.getElementById('edit-thumbnail-blob-url').value = thumbnailBlobUrl || '';
 
             // Set blur settings - convert string 'true'/'false' to boolean
             const isBlurredEnabled = showBlurred === true || showBlurred === 'true';
@@ -1043,21 +1047,35 @@
                         console.log('✅ Form element detected, using manual data collection (not FormData)');
                     }
 
-                    // Collect form data manually (NO FormData to avoid serverless issues)
+                    // Collect form data manually with null checks (NO FormData to avoid serverless issues)
+                    const titleEl = form.querySelector('[name="title"]');
+                    const descriptionEl = form.querySelector('[name="description"]');
+                    const priceEl = form.querySelector('[name="price"]');
+                    const thumbnailUrlEl = form.querySelector('[name="thumbnail_url"]');
+                    const thumbnailBlobUrlEl = form.querySelector('[name="thumbnail_blob_url"]');
+                    const blurIntensityEl = form.querySelector('[name="blur_intensity"]');
+                    const showBlurredEl = form.querySelector('[name="show_blurred"]');
+                    const allowPreviewEl = form.querySelector('[name="allow_preview"]');
+
+                    if (!titleEl || !priceEl) {
+                        throw new Error('Required form fields not found');
+                    }
+
                     const formData = {
-                        title: form.querySelector('[name="title"]').value,
-                        description: form.querySelector('[name="description"]').value,
-                        price: form.querySelector('[name="price"]').value,
-                        thumbnail_url: form.querySelector('[name="thumbnail_url"]').value || '',
-                        thumbnail_blob_url: form.querySelector('[name="thumbnail_blob_url"]').value || '',
-                        blur_intensity: form.querySelector('[name="blur_intensity"]').value || 10,
-                        show_blurred: form.querySelector('[name="show_blurred"]').checked ? 1 : 0,
-                        allow_preview: form.querySelector('[name="allow_preview"]').checked ? 1 : 0,
+                        title: titleEl.value,
+                        description: descriptionEl ? descriptionEl.value : '',
+                        price: priceEl.value,
+                        thumbnail_url: thumbnailUrlEl ? thumbnailUrlEl.value : '',
+                        thumbnail_blob_url: thumbnailBlobUrlEl ? thumbnailBlobUrlEl.value : '',
+                        blur_intensity: blurIntensityEl ? blurIntensityEl.value : 10,
+                        show_blurred: showBlurredEl ? (showBlurredEl.checked ? 1 : 0) : 0,
+                        allow_preview: allowPreviewEl ? (allowPreviewEl.checked ? 1 : 0) : 0,
                         _method: 'PUT',
                         _token: '{{ csrf_token() }}'
                     };
 
-                    const thumbnailFile = form.querySelector('[name="thumbnail"]').files[0];
+                    const thumbnailFileEl = form.querySelector('[name="thumbnail"]');
+                    const thumbnailFile = thumbnailFileEl && thumbnailFileEl.files ? thumbnailFileEl.files[0] : null;
 
                     // Handle thumbnail upload to Vercel Blob if a file is selected
                     if (thumbnailFile && thumbnailFile.size > 0) {

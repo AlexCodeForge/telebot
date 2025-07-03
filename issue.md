@@ -184,8 +184,24 @@ Despite implementing JSON-based submission, the issue persisted because:
 
 **Updated Fix Commits:**
 - `[PENDING]` - fix: remove multipart form encoding that was causing middleware conflicts
+- `[PENDING]` - fix: add missing form fields and defensive null checks to prevent JavaScript errors
 
-**Status**: 🔧 **Fix implemented, testing in progress**
+**🔄 Third Wave Fix (July 3, 2025):**
+
+After deploying the form encoding fix, we discovered additional issues:
+
+1. **Missing Form Field**: The form was missing the hidden `thumbnail_blob_url` input field that the JavaScript was trying to access
+2. **Null Reference Errors**: JavaScript was failing when trying to access form elements that might not exist
+3. **Defensive Programming Needed**: The original code assumed all form elements would always be present
+
+**Additional Changes Made:**
+- Added missing `<input type="hidden" name="thumbnail_blob_url">` field to the form
+- Implemented defensive null checks for all form element access
+- Added proper error handling for missing required fields
+- Updated the `editVideo()` function to properly set the `thumbnail_blob_url` parameter
+- Enhanced JavaScript robustness with element existence validation
+
+**Status**: 🔧 **Additional fixes implemented, ready for deployment**
 
 ---
 
