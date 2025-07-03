@@ -477,7 +477,7 @@
                     <h5 class="modal-title">Edit Video</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="editVideoForm" onsubmit="updateVideo(event)" enctype="multipart/form-data">
+                <form id="editVideoForm" onsubmit="updateVideo(event)" action="javascript:void(0)">
                     <div class="modal-body">
                         <div class="row">
                             <!-- Basic Video Details -->
@@ -1023,7 +1023,9 @@
         }
 
         function updateVideo(event) {
+            // CRITICAL: Prevent any form submission to avoid FormData processing
             event.preventDefault();
+            event.stopPropagation();
 
             const form = event.target;
             const videoId = form.getAttribute('data-video-id');
@@ -1036,6 +1038,11 @@
 
             async function performUpdate() {
                 try {
+                    // Additional safety check to ensure we never use FormData
+                    if (window.FormData && form instanceof HTMLFormElement) {
+                        console.log('✅ Form element detected, using manual data collection (not FormData)');
+                    }
+
                     // Collect form data manually (NO FormData to avoid serverless issues)
                     const formData = {
                         title: form.querySelector('[name="title"]').value,

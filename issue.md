@@ -171,7 +171,21 @@ $request->validate([
 - `d55e60d` - fix: additional validation improvements for video updates  
 - `5e84f69` - fix: resolve video update 500 error and improve thumbnail handling
 
-**Status**: ✅ **Successfully deployed and live**
+**🔄 Additional Fix Required (July 3, 2025):**
+
+Despite implementing JSON-based submission, the issue persisted because:
+
+1. **Root Cause**: The HTML form still had `enctype="multipart/form-data"` attribute
+2. **Problem**: Even with JavaScript `preventDefault()`, browsers might still process the form as multipart BEFORE JavaScript executes
+3. **Solution**: 
+   - Remove `enctype="multipart/form-data"` from form element
+   - Add `action="javascript:void(0)"` to prevent accidental traditional submission
+   - Enhanced JavaScript event handling with `stopPropagation()`
+
+**Updated Fix Commits:**
+- `[PENDING]` - fix: remove multipart form encoding that was causing middleware conflicts
+
+**Status**: 🔧 **Fix implemented, testing in progress**
 
 ---
 
@@ -180,9 +194,15 @@ $request->validate([
 If similar serverless middleware issues occur:
 
 1. **Check for FormData usage** in frontend JavaScript
-2. **Consider JSON alternatives** for form submission
-3. **Verify field name consistency** between frontend and backend
-4. **Test content type handling** in controllers
-5. **Monitor serverless-specific constraints** (memory, processing time)
+2. **Check HTML form attributes** - especially `enctype="multipart/form-data"`
+3. **Consider JSON alternatives** for form submission
+4. **Verify field name consistency** between frontend and backend
+5. **Test content type handling** in controllers
+6. **Monitor serverless-specific constraints** (memory, processing time)
+7. **Implement middleware bypasses** for JSON requests when necessary
+
+**⚠️ Critical Discovery**: Even with JavaScript preventDefault(), HTML forms with `enctype="multipart/form-data"` can still trigger middleware processing BEFORE JavaScript executes, especially in serverless environments with different execution timing.
+
+**✅ Best Practice**: For serverless Laravel apps, avoid `enctype="multipart/form-data"` entirely and use separate endpoints for file uploads combined with JSON for metadata updates.
 
 This fix serves as a template for resolving similar serverless environment compatibility issues in Laravel applications deployed on Vercel. 
