@@ -153,9 +153,11 @@ class VideoController extends Controller
                     }
                 }
 
-                // Store new thumbnail to Vercel Blob directly
-                $thumbnailContent = file_get_contents($thumbnailFile->getPathname());
+                // Store new thumbnail to Vercel Blob directly (read from stream)
                 $blobClient = new \VercelBlobPhp\Client(env('BLOB_READ_WRITE_TOKEN'));
+
+                // Read file content directly from upload stream to avoid filesystem issues
+                $thumbnailContent = $thumbnailFile->get();
 
                 $options = new \VercelBlobPhp\CommonCreateBlobOptions(
                     addRandomSuffix: false,
