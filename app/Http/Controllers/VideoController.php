@@ -134,10 +134,9 @@ class VideoController extends Controller
             try {
                 $blobUrl = $request->input('thumbnail_blob_url');
 
-                // Validate that this is a valid Vercel Blob URL for this store
-                $expectedStoreId = 'lplrssrabxtyf1og'; // From user's store info
-                if (!str_contains($blobUrl, $expectedStoreId . '.public.blob.vercel-storage.com')) {
-                    throw new \Exception('Invalid blob URL - not from authorized store');
+                // Validate that this is a valid Vercel Blob URL
+                if (!str_contains($blobUrl, '.public.blob.vercel-storage.com')) {
+                    throw new \Exception('Invalid blob URL - not from Vercel Blob storage');
                 }
 
                 // Delete old thumbnail from Vercel Blob if exists

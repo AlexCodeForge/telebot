@@ -30,6 +30,7 @@ class Video extends Model
         'height',
         'thumbnail_path',
         'thumbnail_url',
+        'thumbnail_blob_url',
         'show_blurred_thumbnail',
         'blur_intensity',
         'allow_preview',
@@ -43,6 +44,8 @@ class Video extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'telegram_message_data' => 'array',
+        'show_blurred_thumbnail' => 'boolean',
+        'allow_preview' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
